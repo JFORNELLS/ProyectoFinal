@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
 import "../src/LendingPool.sol";
 import "../lib/forge-std/src/interfaces/IERC20.sol";
-//import "../openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-import "../src/aToken.sol";
+import {aToken} from "../src/aToken.sol";
 
 
 contract LendingPoolTest is Test {
@@ -25,6 +24,8 @@ contract LendingPoolTest is Test {
         tokenWeth = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
         bob = makeAddr("bob");
         deal(address(tokenWeth), bob, 1 ether);
+        deal(address(tokenWeth), address(this), 2 ether);
+        vm.deal(address(lend), 2 ether);
         
     }
 
@@ -38,5 +39,11 @@ contract LendingPoolTest is Test {
         console.log("mapping Weth" ,lend.balanceWeth(address(bob)));
         
 
+    }
+
+    function testBorrowLend() public {
+        vm.startPrank(bob);
+        lend.borrow(2 ether);
+        
     }
 }
