@@ -28,6 +28,7 @@ contract debtTokenTest is Test {
         debt.burnDebtToken(alice, 5 ether);
         assertEq(debt.balanceOf(alice), 5 ether);
         assertEq(debt.totalSupply(), supply - 5 ether);
+        console.log(debt.addressDebtToken());
     }
 
 

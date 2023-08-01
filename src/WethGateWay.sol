@@ -4,7 +4,6 @@ import {LendingPool} from "src/LendingPool.sol";
 import {IERC20} from "../lib/forge-std/src/interfaces/IERC20.sol";
 import {aToken} from "src/aToken.sol";
 import {debtToken} from "src/debtToken.sol";
-import {Dates} from "src/Data.sol";
 
 interface IWETH {
     function deposit() external payable;
@@ -12,55 +11,50 @@ interface IWETH {
 }
 
 
+
+
 contract WethGateWay {
 
-
-
     IWETH public immutable iweth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    address public immutable tokenWeth = (0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    LendingPool public  lend = new LendingPool();
-    aToken public atoken = new aToken();
-    debtToken public debttoken = new debtToken();
-    Dates public update = new Dates();
+    address public weth = (0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    IERC20 public iercWeth = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    IERC20 public ierc20Atoken = IERC20(0x41C3c259514f88211c4CA2fd805A93F8F9A57504);
+    LendingPool public lend = new LendingPool();
+    
+    function depositETH() public payable {
+        uint256 amount = msg.value;
+        iweth.deposit{value: amount}();
+        address user = msg.sender;
+        iercWeth.approve(address(lend), amount);
+        lend.deposit(amount, user);
 
-    // Function to deposit ETH.
-    function depositETH(uint256 amount) external payable {
-        update.addDates(amount);
-        iweth.deposit{value: msg.value}(); 
-        IERC20(tokenWeth).approve(address(lend), amount); 
-        lend.deposit(amount); 
     }
+
+    function withdrawETH(uint256 amount) public payable {
+        ierc20Atoken.transferFrom(msg.sender, address(this), amount);
+        ierc20Atoken.approve(address(lend), amount);
+        address user = msg.sender;
+        lend.withdraw(amount, user);
+        iercWeth.transferFrom(address(lend), address(this), amount);
+        iweth.withdraw(amount);
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "Error Send ETH");
+    }
+
+    
+
+
    
-    // Hola! el problema ve quan vull enviar els atoken. error "Arithmetic over/underflow"
-    // En el testDepositETH hi ha l'approve per enviar els atoken d'Alice.
 
-    function withdrawETH(uint256 amount) external {
-        IERC20(address(atoken)).transferFrom(msg.sender, address(lend), amount); 
-        lend.withdraw(amount);
-        iweth.withdraw(amount);
-        (bool success, ) = msg.sender.call{value: amount}("");
-        require(success, "Error send ETH");
-        
-    }
+  
+    
 
-    function borrowETH(uint256 amount) external payable {
-        lend.borrow(amount);
-        iweth.withdraw(amount);
-        (bool success, ) = msg.sender.call{value: amount}("");
-        require(success, "Error sen ETH");
-        IERC20(address(debttoken)).approve(msg.sender, amount);
-        //IERC20(address(debttoken)).transferFrom(address(this), msg.sender, amount);
-
-    }
-
-
-
-    function getATokenBalance(address _address) public view returns (uint256) {
-        return atoken.balanceOf(_address);
-    }
+    
+   
+    
+    
 
   
 
-    
     receive() external payable {}
 }
