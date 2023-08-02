@@ -2,15 +2,15 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
-import "../src/aToken.sol";
+import "../src/AToken.sol";
 
-contract aTokenTest is Test {
+contract ATokenTest is Test {
 
-    aToken public atoken;
+    AToken public atoken;
     address public alice;
 
     function setUp() public {
-        atoken = new aToken();
+        atoken = new AToken();
         alice = makeAddr("alice");
     }
 
