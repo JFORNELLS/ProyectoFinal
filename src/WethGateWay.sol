@@ -4,7 +4,7 @@ import "src/LendingPool.sol";
 import "../lib/forge-std/src/interfaces/IERC20.sol";
 import "src/AToken.sol";
 import "src/DebToken.sol";
-
+import "../lib/solmate/src/tokens/WETH.sol";
 interface IWETH {
     function deposit() external payable;
     function withdraw(uint256 amount) external;
@@ -13,18 +13,19 @@ interface IWETH {
 
 
 contract WethGateWay {
+    IWETH public iweth;
     AToken public atoken;
     LendingPool public lend;
     IERC20 public ierc20AToken;
-    
-    IWETH public immutable iweth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    IERC20 public iercWeth = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    
+    IERC20 public iercWeth;
+        
 
-    constructor(address _atoken, LendingPool _lend)  {
+    constructor(address _atoken, LendingPool _lend, address _iweth)  {
         atoken = AToken(_atoken);
         lend = _lend;
         ierc20AToken = IERC20(_atoken);
+        iweth = IWETH(_iweth);
+        iercWeth = IERC20(_iweth);
     }
     
     
@@ -48,9 +49,10 @@ contract WethGateWay {
         require(success, "Error Send ETH");
     }
 
-    function borrowETH(uint256 amount) public {
+    function borrowETH(uint256 amount) public payable {
         address user = msg.sender;
         lend.borrow(amount, user);
+        iercWeth.transferFrom(address(lend), address(this), amount);
         iweth.withdraw(amount);
         (bool success, ) = msg.sender.call{value: amount}("");
         require(success, "Error Send ETH");

@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 import "../lib/forge-std/src/interfaces/IERC20.sol";
 import "../src/AToken.sol";
 import "../src/DebToken.sol";
+import "../lib/solmate/src/tokens/WETH.sol";
 
 interface IAToken {
     function mintAToken(address to, uint256 amount) external;
@@ -19,15 +20,18 @@ contract LendingPool {
     
     IAToken public atoken;
     IDebToken public debtoken;
+    WETH public tokenWeth;
     IERC20 public iercAToken;
     IERC20 public iercDebToken;
-    IERC20 public ierc20Weth = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    IERC20 public ierc20Weth;
 
-    constructor(address _atoken, address _debtoken) {
+    constructor(address _atoken, address _debtoken, address payable _tokenWeth) {
         atoken = IAToken(_atoken);
         debtoken = IDebToken(_debtoken);
         iercAToken = IERC20(_atoken);
         iercDebToken = IERC20(_debtoken);
+        tokenWeth = WETH(_tokenWeth);
+        ierc20Weth = IERC20(_tokenWeth);
 
         
     }
@@ -48,7 +52,7 @@ contract LendingPool {
 
     function borrow(uint256 amount, address user) public {
         ierc20Weth.approve(msg.sender, amount);
-        ierc20Weth.transferFrom(address(this), msg.sender, amount);
+        ierc20Weth.transferFrom(msg.sender,  amount);
         IDebToken(address(debtoken)).mintDebToken(user, amount);
         
     }

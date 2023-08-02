@@ -6,6 +6,7 @@ import "../src/LendingPool.sol";
 import "../lib/forge-std/src/interfaces/IERC20.sol";
 import "../src/AToken.sol";
 import "../src/DebToken.sol";
+import {WETH} from "../lib/solmate/src/tokens/WETH.sol";
 
 
 contract LendingPoolTest is Test {
@@ -16,6 +17,7 @@ contract LendingPoolTest is Test {
     
     AToken public atoken;
     DebToken public debtoken;
+    WETH public iweth;
     IERC20 public ierc20AToken;
     IERC20 public ierc20DebToken;
     LendingPool public lend;
@@ -26,15 +28,16 @@ contract LendingPoolTest is Test {
         vm.createSelectFork(MAINNET_RPC_URL);
         atoken = new AToken();
         debtoken = new DebToken();
-        ierc20AToken = IERC20(address(atoken));
+        iweth = new WETH();
         ierc20DebToken = IERC20(address(debtoken));
-        lend = new LendingPool(address(atoken), address(debtoken));
-        ierc20TokenWeth = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-
+        lend = new LendingPool(address(atoken), address(debtoken), payable(address(iweth)));
+        ierc20AToken = IERC20(address(atoken));
+        ierc20TokenWeth = IERC20(0xF62849F9A0B5Bf2913b396098F7c7019b51A820a);
+        ierc20TokenWeth = IERC20(address(iweth));
         bob = makeAddr("bob");
         deal(address(ierc20TokenWeth), bob, 2 ether);
         vm.deal(bob, 2 ether);
-        deal(address(ierc20TokenWeth), address(lend), 2 ether);
+        deal(address(iweth), address(lend), 2 ether);
 
 
     }
