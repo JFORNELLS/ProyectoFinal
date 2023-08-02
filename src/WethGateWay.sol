@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
-import {LendingPool, IAToken} from "src/LendingPool.sol";
-import {IERC20} from "../lib/forge-std/src/interfaces/IERC20.sol";
-import {AToken} from "src/AToken.sol";
-import {debtToken} from "src/debtToken.sol";
+import "src/LendingPool.sol";
+import "../lib/forge-std/src/interfaces/IERC20.sol";
+import "src/AToken.sol";
+import "src/DebToken.sol";
 
 interface IWETH {
     function deposit() external payable;
@@ -12,19 +12,20 @@ interface IWETH {
 
 
 
-
 contract WethGateWay {
-
-    AToken public atoken = new AToken();
+    AToken public atoken;
+    LendingPool public lend;
+    IERC20 public ierc20AToken;
     
-    LendingPool public lend = new LendingPool(IAToken(address(atoken)));
-
     IWETH public immutable iweth = IWETH(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    address public weth = (0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IERC20 public iercWeth = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
-    IERC20 public ierc20Atoken = IERC20(0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f);
-
     
+
+    constructor(address _atoken, LendingPool _lend)  {
+        atoken = AToken(_atoken);
+        lend = _lend;
+        ierc20AToken = IERC20(_atoken);
+    }
     
     
     function depositETH() public payable {
@@ -37,8 +38,8 @@ contract WethGateWay {
     }
 
     function withdrawETH(uint256 amount) public payable {
-        ierc20Atoken.transferFrom(msg.sender, address(this), amount);
-        ierc20Atoken.approve(address(lend), amount);
+        ierc20AToken.transferFrom(msg.sender, address(this), amount);
+        ierc20AToken.approve(address(lend), amount);
         address user = msg.sender;
         lend.withdraw(amount, user);
         iercWeth.transferFrom(address(lend), address(this), amount);
@@ -47,20 +48,15 @@ contract WethGateWay {
         require(success, "Error Send ETH");
     }
 
+    function borrowETH(uint256 amount) public {
+        address user = msg.sender;
+        lend.borrow(amount, user);
+        //iercWeth.transferFrom(address(lend), address(this), amount);
+        iweth.withdraw(amount);
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "Error Send ETH");
+    }
+
     
-
-
-   
-
-  
-    
-
-    
-   
-    
-    
-
-  
-
     receive() external payable {}
 }

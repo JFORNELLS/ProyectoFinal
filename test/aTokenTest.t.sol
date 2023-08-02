@@ -29,8 +29,5 @@ contract ATokenTest is Test {
         assertEq(atoken.balanceOf(alice), 5 ether);
         assertEq(atoken.totalSupply(), supply - 5 ether);
     }
-
-
-
 }
     

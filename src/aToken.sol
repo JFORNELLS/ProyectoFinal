@@ -4,8 +4,6 @@ import "../lib/solmate/src/tokens/ERC20.sol";
 contract AToken is ERC20 {
 
 
-    mapping(address => uint256) private balances;
-
     constructor() ERC20("AToken", "ATN", 18) {}
 
     function mintAToken(address to, uint256 amount) public {
@@ -16,18 +14,6 @@ contract AToken is ERC20 {
         _burn(account, amount);
     }
 
-    function balancesOf(address account) public view returns (uint256) {
-        return balances[account];
-    }
-
-
-    function transferFromAT(address from, address to, uint256 amount) public {
-        transferFrom(from, to, amount);
-    }
-
-    function approveAT(address spender, uint256 amount) public {
-        approve(spender, amount);
-    }
-  
+    
 }
     
