@@ -51,7 +51,6 @@ contract WethGateWay {
     function borrowETH(uint256 amount) public {
         address user = msg.sender;
         lend.borrow(amount, user);
-        //iercWeth.transferFrom(address(lend), address(this), amount);
         iweth.withdraw(amount);
         (bool success, ) = msg.sender.call{value: amount}("");
         require(success, "Error Send ETH");

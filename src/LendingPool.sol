@@ -19,12 +19,15 @@ contract LendingPool {
     
     IAToken public atoken;
     IDebToken public debtoken;
-    IERC20 public ierc20AToken = IERC20(0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f);
+    IERC20 public iercAToken;
+    IERC20 public iercDebToken;
     IERC20 public ierc20Weth = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
-    constructor(IAToken _atoken, IDebToken _debtoken) {
-        atoken = _atoken;
-        debtoken = _debtoken;
+    constructor(address _atoken, address _debtoken) {
+        atoken = IAToken(_atoken);
+        debtoken = IDebToken(_debtoken);
+        iercAToken = IERC20(_atoken);
+        iercDebToken = IERC20(_debtoken);
 
         
     }
@@ -37,7 +40,7 @@ contract LendingPool {
     }
 
     function withdraw(uint256 amount, address user) public {
-        ierc20AToken.transferFrom(msg.sender, address(this), amount);
+        iercAToken.transferFrom(msg.sender, address(this), amount);
         IAToken(address(atoken)).burnAToken(address(this), amount);
         ierc20Weth.approve(msg.sender, amount);
 
@@ -50,11 +53,6 @@ contract LendingPool {
         
     }
 
-
-    
-   
-
-    
 
     receive() external payable {}
 }

@@ -30,7 +30,7 @@ contract WethGateWayTest is Test {
         
         
         
-        lend = new LendingPool(IAToken(address(atoken)), IDebToken(address(debtoken)));
+        lend = new LendingPool(address(atoken), address(debtoken));
         gateway = new WethGateWay(address(atoken), lend);
 
         ierc20DebToken = IERC20(address(debtoken));
@@ -41,8 +41,6 @@ contract WethGateWayTest is Test {
         vm.deal(alice, 2 ether);
         deal(address(ierc20AToken), alice, 2 ether);
         deal(address(tokenWeth), address(lend), 2 ether);
-        
-        
         
         
     }
@@ -74,10 +72,5 @@ contract WethGateWayTest is Test {
 
 
 
-    
-
-   
-
- 
     receive() external payable {}
 }

@@ -28,7 +28,7 @@ contract LendingPoolTest is Test {
         debtoken = new DebToken();
         ierc20AToken = IERC20(address(atoken));
         ierc20DebToken = IERC20(address(debtoken));
-        lend = new LendingPool(IAToken(address(atoken)), IDebToken(address(debtoken)));
+        lend = new LendingPool(address(atoken), address(debtoken));
         ierc20TokenWeth = IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
         bob = makeAddr("bob");
@@ -67,11 +67,4 @@ contract LendingPoolTest is Test {
         assertEq(ierc20TokenWeth.balanceOf(address(bob)), 4 ether);
     }
 
-
-
-    
-        
-
-
-  
 }
