@@ -6,36 +6,48 @@ import "../src/LendingPool.sol";
 import "../lib/forge-std/src/interfaces/IERC20.sol";
 import "../src/AToken.sol";
 import "../src/DebToken.sol";
+import "../src/WethGateWay.sol";
 import {WETH} from "../lib/solmate/src/tokens/WETH.sol";
 
 
 contract LendingPoolTest is Test {
-    string MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
 
     
-    IERC20 public ierc20TokenWeth;
+    IERC20 public iercTokenWeth;
     
     AToken public atoken;
     DebToken public debtoken;
     WETH public iweth;
-    IERC20 public ierc20AToken;
-    IERC20 public ierc20DebToken;
+    IERC20 public iercAToken;
+    IERC20 public iercDebToken;
+    WethGateWay public gateway;
     LendingPool public lend;
     address public bob;
 
     function setUp() public {
 
-        vm.createSelectFork(MAINNET_RPC_URL);
         atoken = new AToken();
         debtoken = new DebToken();
         iweth = new WETH();
-        ierc20DebToken = IERC20(address(debtoken));
-        lend = new LendingPool(address(atoken), address(debtoken), payable(address(iweth)));
-        ierc20AToken = IERC20(address(atoken));
-        ierc20TokenWeth = IERC20(0xF62849F9A0B5Bf2913b396098F7c7019b51A820a);
-        ierc20TokenWeth = IERC20(address(iweth));
+        gateway = new WethGateWay(
+            address(atoken), 
+            lend, 
+            address(iweth)
+            );
+            
+        lend = new LendingPool(
+            address(atoken), 
+            address(debtoken), 
+            payable(address(iweth)), 
+            payable(address(gateway))
+            );
+
+        iercDebToken = IERC20(address(debtoken));
+        iercAToken = IERC20(address(atoken));
+        iercTokenWeth = IERC20(address(iweth));
+
         bob = makeAddr("bob");
-        deal(address(ierc20TokenWeth), bob, 2 ether);
+        deal(address(iercTokenWeth), bob, 2 ether);
         vm.deal(bob, 2 ether);
         deal(address(iweth), address(lend), 2 ether);
 
@@ -44,30 +56,31 @@ contract LendingPoolTest is Test {
 
     function testDeposit() public {
         vm.startPrank(bob);
-        console.log(ierc20TokenWeth.balanceOf(bob));
-        ierc20TokenWeth.approve(address(lend), 2 ether);
+        console.log(iercTokenWeth.balanceOf(bob));
+        iercTokenWeth.approve(address(lend), 2 ether);
         lend.deposit(2 ether, address(bob));
-        assertEq(ierc20AToken.balanceOf(address(bob)), 2 ether);
+        assertEq(iercAToken.balanceOf(address(bob)), 2 ether);
 
     }
 
     function testWithdraw() public {
         vm.startPrank(bob);
-        ierc20TokenWeth.approve(address(lend), 2 ether);
+        iercTokenWeth.approve(address(lend), 2 ether);
         lend.deposit(2 ether, address(bob));
-        assertEq(ierc20AToken.balanceOf(address(bob)), 2 ether);
-        ierc20AToken.approve(address(lend), 2 ether);
+        assertEq(iercAToken.balanceOf(address(bob)), 2 ether);
+        iercAToken.approve(address(lend), 2 ether);
         lend.withdraw(2 ether, bob);
+        assertEq(iercTokenWeth.balanceOf(address(bob)), 2 ether);
         
 
     }
 
     function testBorrow() public {
         vm.startPrank(bob);
-        console.log(ierc20TokenWeth.balanceOf(address(lend)));
+        console.log(iercTokenWeth.balanceOf(address(lend)));
         lend.borrow(2 ether, bob);
-        assertEq(ierc20DebToken.balanceOf(address(bob)), 2 ether);
-        assertEq(ierc20TokenWeth.balanceOf(address(bob)), 4 ether);
+        assertEq(iercDebToken.balanceOf(address(bob)), 2 ether);
+        assertEq(iercTokenWeth.balanceOf(address(bob)), 4 ether);
     }
 
 }

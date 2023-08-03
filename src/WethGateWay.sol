@@ -13,17 +13,23 @@ interface IWETH {
 
 
 contract WethGateWay {
-    IWETH public iweth;
-    AToken public atoken;
-    LendingPool public lend;
-    IERC20 public ierc20AToken;
-    IERC20 public iercWeth;
+
+
+    IWETH public immutable iweth;
+    AToken public immutable atoken;
+    LendingPool public immutable lend;
+    IERC20 public immutable iercAToken;
+    IERC20 public immutable iercWeth;
         
 
-    constructor(address _atoken, LendingPool _lend, address _iweth)  {
+    constructor(
+        address _atoken, 
+        LendingPool _lend, 
+        address _iweth
+        )  {
         atoken = AToken(_atoken);
         lend = _lend;
-        ierc20AToken = IERC20(_atoken);
+        iercAToken = IERC20(_atoken);
         iweth = IWETH(_iweth);
         iercWeth = IERC20(_iweth);
     }
@@ -39,8 +45,8 @@ contract WethGateWay {
     }
 
     function withdrawETH(uint256 amount) public payable {
-        ierc20AToken.transferFrom(msg.sender, address(this), amount);
-        ierc20AToken.approve(address(lend), amount);
+        iercAToken.transferFrom(msg.sender, address(this), amount);
+        iercAToken.approve(address(lend), amount);
         address user = msg.sender;
         lend.withdraw(amount, user);
         iercWeth.transferFrom(address(lend), address(this), amount);

@@ -11,12 +11,11 @@ import "../lib/solmate/src/tokens/WETH.sol";
 
 
 contract WethGateWayTest is Test {
-    string MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
 
     WETH public weth;
     IERC20 public tokenWeth;
-    IERC20 public ierc20AToken;
-    IERC20 public ierc20DebToken;
+    IERC20 public iercAToken;
+    IERC20 public iercDebToken;
     address public alice;
     AToken public atoken; 
     DebToken public debtoken;
@@ -25,23 +24,30 @@ contract WethGateWayTest is Test {
  
 
     function setUp() public {
-        vm.createSelectFork(MAINNET_RPC_URL);
-        atoken = new AToken();
         weth = new WETH();
+        atoken = new AToken();
         debtoken = new DebToken();
-        
-        
-        
-        lend = new LendingPool(address(atoken), address(debtoken), payable(address(weth)));
-        gateway = new WethGateWay(address(atoken), lend, address(weth));
 
-        ierc20DebToken = IERC20(address(debtoken));
-        ierc20AToken = IERC20(address(atoken));
+        lend = new LendingPool(
+            address(atoken), 
+            address(debtoken), 
+            payable(address(weth)), 
+            payable(address(gateway))
+            );
+
+        gateway = new WethGateWay(
+            address(atoken), 
+            lend, 
+            address(weth)
+            );
+
+        iercDebToken = IERC20(address(debtoken));
+        iercAToken = IERC20(address(atoken));
         tokenWeth = IERC20(address(weth));
         
         alice = makeAddr("alice");
         vm.deal(alice, 2 ether);
-        deal(address(ierc20AToken), alice, 2 ether);
+        deal(address(iercAToken), alice, 2 ether);
         deal(address(tokenWeth), address(lend), 2 ether);
         
         
@@ -52,26 +58,24 @@ contract WethGateWayTest is Test {
         assertEq(address(alice).balance, 2 ether);
         gateway.depositETH{value: 2 ether}();
         assertEq(address(alice).balance, 0);
-        assertEq(ierc20AToken.balanceOf(address(alice)), 4 ether);
+        assertEq(iercAToken.balanceOf(address(alice)), 4 ether);
 
     }
 
     function testWithdrawETH() public {
         vm.startPrank(alice);
-        console.log(ierc20AToken.balanceOf(alice));
         gateway.depositETH{value: 2 ether}();
-        ierc20AToken.approve(address(gateway), 2 ether);
+        iercAToken.approve(address(gateway), 2 ether);
         gateway.withdrawETH(2 ether);
         assertEq(address(alice).balance, 2 ether);
     }
 
     function testBorrowETH() public {
         vm.startPrank(alice);
-        console.log(tokenWeth.balanceOf(address(lend)));
-        gateway.borrowETH(2 ether);
-        //console.log(tokenWeth.balanceOf(address(lend)));
-        //assertEq(ierc20DebToken.balanceOf(address(alice)), 2 ether);
-        //assertEq(address(alice).balance, 4 ether);
+        gateway.depositETH{value: 2 ether}();
+        gateway.borrowETH(1 ether);
+        assertEq(iercDebToken.balanceOf(address(alice)), 1 ether);
+        assertEq(address(alice).balance, 1 ether);
     }
 
 
