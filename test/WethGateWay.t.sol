@@ -25,8 +25,9 @@ contract WethGateWayTest is Test {
 
     function setUp() public {
         weth = new WETH();
-        atoken = new AToken();
         debtoken = new DebToken();
+        atoken = new AToken();
+        
 
         lend = new LendingPool(
             address(atoken), 
@@ -38,7 +39,8 @@ contract WethGateWayTest is Test {
         gateway = new WethGateWay(
             address(atoken), 
             lend, 
-            address(weth)
+            address(weth), 
+            address(debtoken)
             );
 
         iercDebToken = IERC20(address(debtoken));
@@ -46,7 +48,7 @@ contract WethGateWayTest is Test {
         tokenWeth = IERC20(address(weth));
         
         alice = makeAddr("alice");
-        vm.deal(alice, 2 ether);
+        vm.deal(alice, 4 ether);
         deal(address(iercAToken), alice, 2 ether);
         deal(address(tokenWeth), address(lend), 2 ether);
         
@@ -55,9 +57,9 @@ contract WethGateWayTest is Test {
 
     function testDepositETH() public {
         vm.startPrank(alice);
-        assertEq(address(alice).balance, 2 ether);
+        assertEq(address(alice).balance, 4 ether);
         gateway.depositETH{value: 2 ether}();
-        assertEq(address(alice).balance, 0);
+        assertEq(address(alice).balance, 2 ether);
         assertEq(iercAToken.balanceOf(address(alice)), 4 ether);
 
     }
@@ -67,7 +69,7 @@ contract WethGateWayTest is Test {
         gateway.depositETH{value: 2 ether}();
         iercAToken.approve(address(gateway), 2 ether);
         gateway.withdrawETH(2 ether);
-        assertEq(address(alice).balance, 2 ether);
+        assertEq(address(alice).balance, 4 ether);
     }
 
     function testBorrowETH() public {
@@ -75,8 +77,31 @@ contract WethGateWayTest is Test {
         gateway.depositETH{value: 2 ether}();
         gateway.borrowETH(1 ether);
         assertEq(iercDebToken.balanceOf(address(alice)), 1 ether);
-        assertEq(address(alice).balance, 1 ether);
+        console.log(iercDebToken.balanceOf(address(alice)));
+        assertEq(address(alice).balance, 3 ether);
+       
+
     }
+
+    function testRepayETH() public {
+        vm.startPrank(alice);
+        gateway.depositETH{value: 2 ether}();
+        gateway.borrowETH(1 ether);
+        assertEq(iercDebToken.balanceOf(address(alice)), 1 ether);
+        console.log(iercDebToken.balanceOf(address(alice)));
+        assertEq(address(alice).balance, 3 ether);
+        uint256 balanceDebtoken = iercDebToken.balanceOf(address(alice));
+        iercDebToken.approve(address(gateway), balanceDebtoken);
+        gateway.repayETH{value: 1.1 ether}();
+        console.log(iercDebToken.balanceOf(address(gateway)));
+        
+        
+        
+    }
+
+
+
+    
 
 
 

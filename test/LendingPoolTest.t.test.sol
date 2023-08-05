@@ -32,9 +32,10 @@ contract LendingPoolTest is Test {
         gateway = new WethGateWay(
             address(atoken), 
             lend, 
-            address(iweth)
+            address(iweth),
+            address(debtoken)
             );
-            
+
         lend = new LendingPool(
             address(atoken), 
             address(debtoken), 
@@ -81,6 +82,19 @@ contract LendingPoolTest is Test {
         lend.borrow(2 ether, bob);
         assertEq(iercDebToken.balanceOf(address(bob)), 2 ether);
         assertEq(iercTokenWeth.balanceOf(address(bob)), 4 ether);
+    }
+
+    function testRepay() public {
+        vm.startPrank(bob);
+        iercTokenWeth.approve(address(lend), 1 ether);
+        lend.deposit(1 ether, address(bob));
+        lend.borrow(2 ether, bob);
+        iercTokenWeth.approve(address(lend), 2 ether);
+        uint256 debt =  iercDebToken.balanceOf(address(bob));
+        iercDebToken.approve(address(lend), debt);
+        
+
+        lend.repay(2 ether, address(bob));
     }
 
 }
