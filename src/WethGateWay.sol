@@ -14,7 +14,6 @@ interface IWETH {
 
 contract WethGateWay {
 
-    error IncorrectAmount();
 
     IWETH public immutable iweth;
     AToken public immutable atoken;
@@ -43,51 +42,45 @@ contract WethGateWay {
     
     function depositETH() public payable {
         uint256 amount = msg.value;
-        iweth.deposit{value: amount}();
         address user = msg.sender;
+
+        iweth.deposit{value: amount}();
         iercWeth.approve(address(lend), amount);
         lend.deposit(amount, user);
 
     }
 
     function withdrawETH(uint256 amount) public payable {
-        iercAToken.transferFrom(msg.sender, address(this), amount);
-        iercAToken.approve(address(lend), amount);
         address user = msg.sender;
+        iercAToken.transferFrom(msg.sender, address(this), amount);
+        
+        iercAToken.approve(address(lend), amount);
         lend.withdraw(amount, user);
-        iercWeth.transferFrom(address(lend), address(this), amount);
-        iweth.withdraw(amount);
-        (bool success, ) = msg.sender.call{value: amount}("");
+        
+        uint256 amountToWithdraw = amount + lend.calculateRewards(amount, user);
+        iweth.withdraw(amountToWithdraw);
+        (bool success, ) = msg.sender.call{value: amountToWithdraw}("");
         require(success, "Error Send ETH");
-    }
+    } 
 
     function borrowETH(uint256 amount) public payable {
         address user = msg.sender;
         lend.borrow(amount, user);
-        iercWeth.transferFrom(address(lend), address(this), amount);
         iweth.withdraw(amount);
         (bool success, ) = msg.sender.call{value: amount}("");
         require(success, "Error Send ETH");
     }
 
-    function repayETH() public payable {
+    function repayETH(uint256 amount) public payable {
         address user = msg.sender;
-        uint256 amount = msg.value;
-        uint256 amountToRepay = lend.amountToRepay(user);
-        if(amount != amountToRepay) revert IncorrectAmount();
-        iweth.deposit{value: amount}();
-        iercWeth.approve(address(lend), amount);
-        uint256 debTokenMinted = lend.debTokenMinted(user);
-        iercDebToken.transferFrom(msg.sender, address(this), debTokenMinted);
-        iercDebToken.approve(address(lend), debTokenMinted);
+        lend.calculateInterest(amount, user);
+        uint256 amountToRepay = lend.calculateInterest(amount, user);
+        iweth.deposit{value: msg.value}();
+        iercWeth.approve(address(lend), msg.value);
+        iercDebToken.transferFrom(msg.sender, address(this), amount);
         lend.repay(amount, user);
         
-        
-       
-       
-       
-        
-        
+          
 
     }
 

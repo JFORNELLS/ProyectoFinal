@@ -18,18 +18,31 @@ interface IDebToken {
 
 contract LendingPool {
 
+    error AmountCannotBe0();
+    error AlreadyHaveADeposit();
+    error MustRepayTheLoan__ThereIsNoDeposit();
+    error ThereIsNoDeposit_AlreadyRequestedALoan();
+    error MustRepayTheLoan();
+    error AmountMustBeLess();
+    error InsuficientWeth();
+    error AlreadyABorrow();
+    error AmountExceeded();
+    error HasNotALoan();
+    
+
     enum State {
-        SUPPLY,
-        BORROW
+        INITIAL,
+        SUPPLIER,
+        BORROWER
+        
     }
 
     struct Data {
         address supplier;
-        uint256 deposit;
+        uint256 amountDeposit;
         uint256 timeSupply;
-        uint256 borrowed;
+        uint256 amountBorrowed;
         uint256 timeBorrow;
-        uint256 debTokenMinted;
         State state;
     }
 
@@ -65,14 +78,19 @@ contract LendingPool {
     uint256 public balanceBorrow;
 
     mapping(address => Data) public supplies;
-    mapping(address => Data) public borrows;
 
     function deposit(uint256 amount, address user) public {
         Data storage data = supplies[user];
+
+        if(data.state != State.INITIAL) 
+        revert AlreadyHaveADeposit();
+        if(amount == 0) revert AmountCannotBe0(); 
+        
+        
         data.supplier = user;
-        data.deposit = amount;
-        data.timeSupply = block.timestamp;
-        data.state = State.SUPPLY;
+        data.amountDeposit = amount;
+        data.timeSupply = 2 ether; //cantitat per fer proves
+        data.state = State.SUPPLIER;
 
         balanceSupply += amount;
         totalSupplies++;
@@ -83,59 +101,111 @@ contract LendingPool {
     }
 
     function withdraw(uint256 amount, address user) public {
-        iercAToken.transferFrom(msg.sender, address(this), amount);
-        if(msg.sender != address(gateway)) {
-            iercWeth.transfer(msg.sender, amount);
+        Data storage data = supplies[user];
+
+        if(data.state != State.SUPPLIER)
+        revert MustRepayTheLoan__ThereIsNoDeposit(); 
+        if(amount == 0) revert AmountCannotBe0();
+        if(amount > data.amountDeposit) 
+        revert AmountMustBeLess();
+        
+
+        uint256 rewards = calculateRewards(amount, user);
+        uint256 amountToWithdraw = amount + rewards;
+
+        data.amountDeposit -= amount;
+        balanceSupply -= amount;
+        if(data.amountDeposit == 0) {
+            data.state = State.INITIAL;
         }
         
-        iercWeth.approve(msg.sender, amount);
+        
+        iercAToken.transferFrom(msg.sender, address(this), amount);
+        iercWeth.transfer(msg.sender, amountToWithdraw);
         IAToken(address(atoken)).burnAToken(address(this), amount);
 
     }
 
     function borrow(uint256 amount, address user) public {
         Data storage data = supplies[user];
-        data.borrowed = amount;
-        data.timeBorrow = 365 days;
-        data.debTokenMinted = amount;
-        data.state = State.BORROW;
+
+        if(data.state != State.SUPPLIER) 
+        revert ThereIsNoDeposit_AlreadyRequestedALoan();
+        if(amount == 0) revert AmountCannotBe0();
+        
+        uint256 maxAmountToBorrow = maxAmountLoan(user);
+        if(amount > maxAmountToBorrow) revert AmountExceeded();
+
+        data.amountBorrowed = amount;
+        data.timeBorrow = 365 days; //cantitat per fer proves
+        data.state = State.BORROWER;
 
         balanceBorrow += amount;
         totalBorrows++;
 
-        if(msg.sender != address(gateway)) {
-            iercWeth.transfer(msg.sender, amount);
-        }
-        iercWeth.approve(msg.sender, amount);
+        
+        iercWeth.transfer(msg.sender, amount);
         IDebToken(address(debtoken)).mintDebToken(user, amount);
             
     }
 
     function repay(uint256 amount, address user) public {
-        iercWeth.transferFrom(msg.sender, address(this), amount);
-        uint256 debTokenMinted = debTokenMinted(user);
-        iercDebToken.transferFrom(msg.sender, address(this), debTokenMinted);
-        IDebToken(address(debtoken)).burnDebToken(address(this), debTokenMinted);
+        Data storage data = supplies[user];
+
+        if(data.state != State.BORROWER) revert HasNotALoan();
+        if(amount == 0) revert AmountCannotBe0();
+        uint256 amountToRepay = calculateInterest(amount, user);
+        if(iercWeth.balanceOf(msg.sender) < amountToRepay) 
+        revert InsuficientWeth();
+        
+         
+        data.amountBorrowed -= amount;
+        if(data.amountBorrowed == 0) {
+            data.state = State.SUPPLIER;
+        }
+        balanceBorrow -= amount;
+
+
+        iercWeth.transferFrom(msg.sender, address(this), amountToRepay);
+        IDebToken(address(debtoken)).burnDebToken(msg.sender, amount);
 
     }
 
-
-    function amountToRepay(address user) public  returns (uint256) {
+    function calculateRewards(uint256 amount, address user) 
+        public 
+        view 
+        returns (uint256) 
+    {
         Data memory data = supplies[user];
-        uint256 amount = data.borrowed;
-        uint256 time = data.timeBorrow;
-        uint256 interest = (amount * 10) / 100;
-        uint256 amountRepay = amount + interest;
+
+        uint256 timeSupply = data.timeSupply;
+        uint256  percent =  (((timeSupply * 10) * 1e18) / 365 days) / 100;
+        return (amount * percent) / 1e18;
         
-        return amountRepay;
     }
 
-    function debTokenMinted(address user) public view returns (uint256) {
-        return supplies[user].debTokenMinted;
+    function calculateInterest(uint256 amount, address user)
+        public  
+        returns (uint256) 
+    {
+        Data memory data = supplies[user];
+
+        uint256 timeSupply = data.timeBorrow;
+        uint256  percent =  (((timeSupply * 10) * 1e18) / 365 days) / 100;
+        uint256 interest = (amount * percent) / 1e18;
+        return interest + amount;
     }
 
 
-        
+    function maxAmountLoan(address user) public view returns (uint256) {
+        uint256 amount = supplies[user].amountDeposit;
+        return (amount * 40) / 100;
+    }
+
+
+    
+
+
   
 
     

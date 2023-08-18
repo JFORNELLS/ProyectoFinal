@@ -17,7 +17,7 @@ contract LendingPoolTest is Test {
     
     AToken public atoken;
     DebToken public debtoken;
-    WETH public iweth;
+    WETH public weth;
     IERC20 public iercAToken;
     IERC20 public iercDebToken;
     WethGateWay public gateway;
@@ -28,39 +28,45 @@ contract LendingPoolTest is Test {
 
         atoken = new AToken();
         debtoken = new DebToken();
-        iweth = new WETH();
+        weth = new WETH();
         gateway = new WethGateWay(
             address(atoken), 
             lend, 
-            address(iweth),
+            address(weth),
             address(debtoken)
             );
 
         lend = new LendingPool(
             address(atoken), 
             address(debtoken), 
-            payable(address(iweth)), 
+            payable(address(weth)), 
             payable(address(gateway))
             );
 
         iercDebToken = IERC20(address(debtoken));
         iercAToken = IERC20(address(atoken));
-        iercTokenWeth = IERC20(address(iweth));
+        iercTokenWeth = IERC20(address(weth));
 
         bob = makeAddr("bob");
         deal(address(iercTokenWeth), bob, 2 ether);
         vm.deal(bob, 2 ether);
-        deal(address(iweth), address(lend), 2 ether);
+        deal(address(weth), address(lend), 4 ether);
 
 
     }
 
     function testDeposit() public {
         vm.startPrank(bob);
-        console.log(iercTokenWeth.balanceOf(bob));
+        
+        iercTokenWeth.approve(address(lend), 0 ether);
+        vm.expectRevert(LendingPool.AmountCannotBe0.selector);
+        lend.deposit(0 ether, address(bob));
         iercTokenWeth.approve(address(lend), 2 ether);
         lend.deposit(2 ether, address(bob));
         assertEq(iercAToken.balanceOf(address(bob)), 2 ether);
+        iercTokenWeth.approve(address(lend), 2 ether);
+        vm.expectRevert(LendingPool.AlreadyHaveADeposit.selector);
+        lend.deposit(2 ether, address(bob));
 
     }
 
@@ -69,9 +75,12 @@ contract LendingPoolTest is Test {
         iercTokenWeth.approve(address(lend), 2 ether);
         lend.deposit(2 ether, address(bob));
         assertEq(iercAToken.balanceOf(address(bob)), 2 ether);
-        iercAToken.approve(address(lend), 2 ether);
-        lend.withdraw(2 ether, bob);
-        assertEq(iercTokenWeth.balanceOf(address(bob)), 2 ether);
+
+        iercAToken.approve(address(lend), 1 ether);
+        lend.withdraw(1 ether, bob);
+        uint256 rewards = lend.calculateRewards(1 ether, address(bob));
+        assertEq(iercTokenWeth.balanceOf(address(bob)), 1 ether + rewards);
+        assertEq(iercAToken.balanceOf(address(bob)), 1 ether);
         
 
     }
@@ -86,15 +95,16 @@ contract LendingPoolTest is Test {
 
     function testRepay() public {
         vm.startPrank(bob);
-        iercTokenWeth.approve(address(lend), 1 ether);
-        lend.deposit(1 ether, address(bob));
-        lend.borrow(2 ether, bob);
         iercTokenWeth.approve(address(lend), 2 ether);
-        uint256 debt =  iercDebToken.balanceOf(address(bob));
-        iercDebToken.approve(address(lend), debt);
+        lend.deposit(2 ether, address(bob));
+        lend.borrow(2 ether, bob);
+        uint256 amountToRepay = lend.calculateInterest(1 ether, address(bob));
+        iercTokenWeth.approve(address(lend), amountToRepay);
+        //uint256 debt =  iercDebToken.balanceOf(address(bob));
+        //iercDebToken.approve(address(lend), debt);
         
 
-        lend.repay(2 ether, address(bob));
+        lend.repay(1 ether, address(bob));
     }
 
 }
