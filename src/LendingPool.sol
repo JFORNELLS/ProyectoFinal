@@ -89,7 +89,7 @@ contract LendingPool {
         
         data.supplier = user;
         data.amountDeposit = amount;
-        data.timeSupply = 2 ether; //cantitat per fer proves
+        data.timeSupply = 182.5 days; //cantitat per fer proves
         data.state = State.SUPPLIER;
 
         balanceSupply += amount;
@@ -114,10 +114,13 @@ contract LendingPool {
         uint256 amountToWithdraw = amount + rewards;
 
         data.amountDeposit -= amount;
-        balanceSupply -= amount;
-        if(data.amountDeposit == 0) {
+         if(data.amountDeposit == 0) {
             data.state = State.INITIAL;
         }
+        balanceSupply -= amount;
+        totalSupplies--;
+       
+
         
         
         iercAToken.transferFrom(msg.sender, address(this), amount);
@@ -164,7 +167,7 @@ contract LendingPool {
             data.state = State.SUPPLIER;
         }
         balanceBorrow -= amount;
-
+        totalBorrows--;
 
         iercWeth.transferFrom(msg.sender, address(this), amountToRepay);
         IDebToken(address(debtoken)).burnDebToken(msg.sender, amount);
