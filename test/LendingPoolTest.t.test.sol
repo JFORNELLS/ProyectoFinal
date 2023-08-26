@@ -7,7 +7,7 @@ import "../lib/forge-std/src/interfaces/IERC20.sol";
 import "../src/AToken.sol";
 import "../src/DebToken.sol";
 import "../src/WethGateWay.sol";
-import {WETH} from "../lib/solmate/src/tokens/WETH.sol";
+import "../lib/solmate/src/tokens/WETH.sol";
 
 
 contract LendingPoolTest is Test {
@@ -26,9 +26,10 @@ contract LendingPoolTest is Test {
 
     function setUp() public {
 
-        atoken = new AToken();
+        atoken = new AToken(payable(address(lend)));
         debtoken = new DebToken();
         weth = new WETH();
+        
         gateway = new WethGateWay(
             address(atoken), 
             lend, 
@@ -67,6 +68,7 @@ contract LendingPoolTest is Test {
         iercTokenWeth.approve(address(lend), 2 ether);
         vm.expectRevert(LendingPool.AlreadyHaveADeposit.selector);
         lend.deposit(2 ether, address(bob));
+        console.log(address(lend));
 
     }
 

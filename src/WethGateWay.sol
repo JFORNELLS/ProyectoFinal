@@ -76,7 +76,7 @@ contract WethGateWay {
         lend.calculateInterest(amount, user);
         uint256 amountToRepay = lend.calculateInterest(amount, user);
         iweth.deposit{value: msg.value}();
-        iercWeth.approve(address(lend), msg.value);
+        iercWeth.approve(address(lend), amountToRepay);
         iercDebToken.transferFrom(msg.sender, address(this), amount);
         lend.repay(amount, user);
         

@@ -2,11 +2,11 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
-import {WethGateWay} from "../src/WethGateWay.sol";
+import "../src/WethGateWay.sol";
 import "../lib/forge-std/src/interfaces/IERC20.sol";
 import {LendingPool, IAToken, IDebToken} from "../src/LendingPool.sol";
 import "../src/DebToken.sol";
-import "../src/aToken.sol";
+import "../src/AToken.sol";
 import "../lib/solmate/src/tokens/WETH.sol";
 
 
@@ -26,7 +26,7 @@ contract WethGateWayTest is Test {
     function setUp() public {
         weth = new WETH();
         debtoken = new DebToken();
-        atoken = new AToken();
+        atoken = new AToken(payable(address(lend)));
         
 
         lend = new LendingPool(
@@ -54,6 +54,7 @@ contract WethGateWayTest is Test {
         
         
     }
+    
 
     function testDepositETH() public {
         vm.startPrank(alice);
@@ -88,7 +89,7 @@ contract WethGateWayTest is Test {
         //If data.state in not equal to INITIAL, the function will revert.
         vm.expectRevert(LendingPool.AlreadyHaveADeposit.selector);
         gateway.depositETH{value: 2 ether}();
-        console.log(address(alice).balance);
+        console.log(address(lend));
        
 
     }
