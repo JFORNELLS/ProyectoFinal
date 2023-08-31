@@ -16,7 +16,30 @@ interface IDebToken {
     function burnDebToken(address account, uint256 amount) external;
 }
 
+
 contract LendingPool {
+
+    event Deposited(
+        address indexed user,
+        uint256 amount
+    );
+
+    event Withdrawn(
+        address indexed user,
+        uint256 amount,
+        uint256 rewards
+    );
+
+    event Borrowed(
+        address indexed user,
+        uint256 amount
+    );
+
+    event Repaied(
+        address indexed user,
+        uint256 amount,
+        uint256 interest
+    );
 
     error AmountCannotBe0();
     error AlreadyHaveADeposit();
@@ -28,6 +51,7 @@ contract LendingPool {
     error AlreadyABorrow();
     error AmountExceeded();
     error HasNotALoan();
+    error addressCannotBe0x0();
     
 
     enum State {
@@ -79,14 +103,14 @@ contract LendingPool {
 
     mapping(address => Data) public supplies;
 
-    function deposit(uint256 amount, address user) public {
+    function deposit(address user, uint256 amount) public {
         Data storage data = supplies[user];
 
+        if(amount == 0) revert AmountCannotBe0();
         if(data.state != State.INITIAL) 
         revert AlreadyHaveADeposit();
-        if(amount == 0) revert AmountCannotBe0(); 
-        
-        
+        if(user == address(0)) revert addressCannotBe0x0();
+         
         data.supplier = user;
         data.amountDeposit = amount;
         data.timeSupply = 182.5 days; //cantitat per fer proves
@@ -98,16 +122,20 @@ contract LendingPool {
         iercWeth.transferFrom(msg.sender, address(this), amount);
         IAToken(address(atoken)).mintAToken(user, amount);
 
+        emit Deposited(user, amount);
+
     }
 
-    function withdraw(uint256 amount, address user) public {
+    function withdraw(address user, uint256 amount) public {
         Data storage data = supplies[user];
 
+        if(amount == 0) revert AmountCannotBe0();
+        if(user == address(0)) revert addressCannotBe0x0();
         if(data.state != State.SUPPLIER)
         revert MustRepayTheLoan__ThereIsNoDeposit(); 
-        if(amount == 0) revert AmountCannotBe0();
         if(amount > data.amountDeposit) 
         revert AmountMustBeLess();
+        
         
 
         uint256 rewards = calculateRewards(amount, user);
@@ -120,27 +148,28 @@ contract LendingPool {
         balanceSupply -= amount;
         totalSupplies--;
        
-
-        
-        
         iercAToken.transferFrom(msg.sender, address(this), amount);
         iercWeth.transfer(msg.sender, amountToWithdraw);
         IAToken(address(atoken)).burnAToken(address(this), amount);
 
+        emit Withdrawn(user, amount, rewards);
+
     }
 
-    function borrow(uint256 amount, address user) public {
+    function borrow(address user, uint256 amount) public {
         Data storage data = supplies[user];
 
+        if(amount == 0) revert AmountCannotBe0();
+        if(user == address(0)) revert addressCannotBe0x0();
         if(data.state != State.SUPPLIER) 
         revert ThereIsNoDeposit_AlreadyRequestedALoan();
-        if(amount == 0) revert AmountCannotBe0();
+        
         
         uint256 maxAmountToBorrow = maxAmountLoan(user);
         if(amount > maxAmountToBorrow) revert AmountExceeded();
 
         data.amountBorrowed = amount;
-        data.timeBorrow = 365 days; //cantitat per fer proves
+        data.timeBorrow = 5475 days; //cantitat per fer proves
         data.state = State.BORROWER;
 
         balanceBorrow += amount;
@@ -149,19 +178,23 @@ contract LendingPool {
         
         iercWeth.transfer(msg.sender, amount);
         IDebToken(address(debtoken)).mintDebToken(user, amount);
+
+        emit Borrowed(user, amount);
             
     }
 
-    function repay(uint256 amount, address user) public {
+    function repay(address user, uint256 amount) public {
         Data storage data = supplies[user];
 
-        if(data.state != State.BORROWER) revert HasNotALoan();
         if(amount == 0) revert AmountCannotBe0();
-        uint256 amountToRepay = calculateInterest(amount, user);
+        if(user == address(0)) revert addressCannotBe0x0();
+        if(data.state != State.BORROWER) revert HasNotALoan();
+        uint256 interest = calculateInterest(amount, user);
+        uint256 amountToRepay = amount + interest;
         if(iercWeth.balanceOf(msg.sender) < amountToRepay) 
         revert InsuficientWeth();
         
-         
+        
         data.amountBorrowed -= amount;
         if(data.amountBorrowed == 0) {
             data.state = State.SUPPLIER;
@@ -172,6 +205,13 @@ contract LendingPool {
         iercWeth.transferFrom(msg.sender, address(this), amountToRepay);
         IDebToken(address(debtoken)).burnDebToken(msg.sender, amount);
 
+        emit Repaied(user, amount, interest);
+
+    }
+
+
+    function viewDeposit(address user) public view returns (uint256) {
+        return supplies[user].amountDeposit;
     }
 
     function calculateRewards(uint256 amount, address user) 
@@ -195,8 +235,8 @@ contract LendingPool {
 
         uint256 timeSupply = data.timeBorrow;
         uint256  percent =  (((timeSupply * 10) * 1e18) / 365 days) / 100;
-        uint256 interest = (amount * percent) / 1e18;
-        return interest + amount;
+        return (amount * percent) / 1e18;
+    
     }
 
 

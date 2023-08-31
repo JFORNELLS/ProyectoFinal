@@ -46,7 +46,7 @@ contract WethGateWay {
 
         iweth.deposit{value: amount}();
         iercWeth.approve(address(lend), amount);
-        lend.deposit(amount, user);
+        lend.deposit(user, amount);
 
     }
 
@@ -55,7 +55,7 @@ contract WethGateWay {
         iercAToken.transferFrom(msg.sender, address(this), amount);
         
         iercAToken.approve(address(lend), amount);
-        lend.withdraw(amount, user);
+        lend.withdraw(user, amount);
         
         uint256 amountToWithdraw = amount + lend.calculateRewards(amount, user);
         iweth.withdraw(amountToWithdraw);
@@ -65,7 +65,7 @@ contract WethGateWay {
 
     function borrowETH(uint256 amount) public payable {
         address user = msg.sender;
-        lend.borrow(amount, user);
+        lend.borrow(user, amount);
         iweth.withdraw(amount);
         (bool success, ) = msg.sender.call{value: amount}("");
         require(success, "Error Send ETH");
@@ -74,11 +74,12 @@ contract WethGateWay {
     function repayETH(uint256 amount) public payable {
         address user = msg.sender;
         lend.calculateInterest(amount, user);
-        uint256 amountToRepay = lend.calculateInterest(amount, user);
+        uint256 interest = lend.calculateInterest(amount, user);
+        uint256 amountToRepay = amount + interest;
         iweth.deposit{value: msg.value}();
         iercWeth.approve(address(lend), amountToRepay);
         iercDebToken.transferFrom(msg.sender, address(this), amount);
-        lend.repay(amount, user);
+        lend.repay(user, amount);
         
           
 

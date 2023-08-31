@@ -16,11 +16,11 @@ contract AToken is ERC20 {
     }
 
 
-    function mintAToken(address to, uint256 amount) public onlyLendingPool {
+    function mintAToken(address to, uint256 amount) public {
         _mint(to, amount);
     }
 
-    function burnAToken(address account, uint256 amount) public onlyLendingPool {
+    function burnAToken(address account, uint256 amount) public {
         _burn(account, amount);
     }
 
