@@ -11,8 +11,8 @@ import "../lib/solmate/src/tokens/WETH.sol";
 
 
 
-
 contract LendingPoolTest is Test {
+
 
     event Deposited(
         address indexed user,
@@ -37,8 +37,7 @@ contract LendingPoolTest is Test {
     );
 
   
-
-    IERC20 public iercTokenWeth;
+    IERC20 public iercWeth;
     
     AToken public atoken;
     DebToken public debtoken;
@@ -48,14 +47,15 @@ contract LendingPoolTest is Test {
     WethGateWay public gateway;
     LendingPool public lend;
     address public bob;
+    address public owner;
 
-    
 
     function setUp() public {
 
         atoken = new AToken(payable(address(lend)));
-        debtoken = new DebToken();
+        debtoken = new DebToken(payable(address(lend)));
         weth = new WETH();
+        owner = makeAddr("owner");
         
         gateway = new WethGateWay(
             address(atoken), 
@@ -68,26 +68,29 @@ contract LendingPoolTest is Test {
             address(atoken), 
             address(debtoken), 
             payable(address(weth)), 
-            payable(address(gateway))
+            payable(address(gateway)),
+            address(owner)
             );
 
         iercDebToken = IERC20(address(debtoken));
         iercAToken = IERC20(address(atoken));
-        iercTokenWeth = IERC20(address(weth));
+        iercWeth = IERC20(address(weth));
+        
 
         bob = makeAddr("bob");
-        deal(address(iercTokenWeth), bob, 3 ether);
-        deal(address(iercTokenWeth), address(0), 1 ether);
-        deal(address(iercTokenWeth), address(lend), 1000 ether);
+        deal(address(iercWeth), bob, 3 ether);
+        deal(address(iercWeth), address(0), 1 ether);
+        deal(address(iercWeth), address(lend), 1000 ether);
         vm.deal(bob, 2 ether);
 
     }
+
     
   
     function testDeposit() public {
         // Check tha user is not the address 0.
         vm.startPrank(address(0));
-        iercTokenWeth.approve(address(lend), 1 ether);
+        iercWeth.approve(address(lend), 1 ether);
         vm.expectRevert(LendingPool.addressCannotBe0x0.selector);
         lend.deposit(address(0), 1 ether);
         vm.stopPrank();
@@ -95,12 +98,12 @@ contract LendingPoolTest is Test {
         vm.startPrank(bob);
         
         // If amount is 0 the function will revert.
-        iercTokenWeth.approve(address(lend), 0 ether);
+        iercWeth.approve(address(lend), 0 ether);
         vm.expectRevert(LendingPool.AmountCannotBe0.selector);
         lend.deposit(address(bob), 0 ether);
 
         // Approve to LendingPool contract to move 2 AToken.
-        iercTokenWeth.approve(address(lend), 2 ether);
+        iercWeth.approve(address(lend), 2 ether);
 
         // Save the value for checking after the deposit.
         uint256 supplies = lend.totalSupplies();
@@ -111,13 +114,13 @@ contract LendingPoolTest is Test {
         emit Deposited(address(bob), 2 ether);
         
         // Deposit 2 WETH tokens
-        lend.deposit(address(bob), 2 ether);
+        lend.deposit(address(bob), 2 ether);   
 
         // Check tha Bob has receive 2 ATokens.
         assertEq(iercAToken.balanceOf(address(bob)), 2 ether);
 
         // Check that Bob has 2 WETH tokens less.
-        assertEq(iercTokenWeth.balanceOf(address(bob)), 1 ether);
+        assertEq(iercWeth.balanceOf(address(bob)), 1 ether);
 
         // Check that the variable is updated with the amount of the deposit.
         assertEq(lend.balanceSupply(), balSupply + 2 ether);
@@ -125,16 +128,18 @@ contract LendingPoolTest is Test {
         // Chech that the variable addsa + 1 after the deposit.
         assertEq(lend.totalSupplies(), supplies + 1);
 
+
         // If data.state in not equal to INITIAL, the function will revert.
-        iercTokenWeth.approve(address(lend), 2 ether);
+        iercWeth.approve(address(lend), 2 ether);
         vm.expectRevert(LendingPool.AlreadyHaveADeposit.selector);
         lend.deposit(address(bob), 2 ether);
+
         
     }
   
 
     function testWithdraw() public {
-        deal(address(iercTokenWeth), bob, 100 ether);
+        deal(address(iercWeth), bob, 100 ether);
         vm.startPrank(bob);
 
         // If the user does has not a deposit, the function will revert.
@@ -142,9 +147,8 @@ contract LendingPoolTest is Test {
         vm.expectRevert(LendingPool.MustRepayTheLoan__ThereIsNoDeposit.selector);
         lend.withdraw(bob, 1 ether);
         
-
         // Deposit 2 WETH Tokens.
-        iercTokenWeth.approve(address(lend), 2 ether);
+        iercWeth.approve(address(lend), 2 ether);
         lend.deposit(address(bob), 2 ether);
 
         // Save the value for checking before the withdrawal.
@@ -156,6 +160,11 @@ contract LendingPoolTest is Test {
         vm.expectRevert(LendingPool.AmountCannotBe0.selector);
         lend.withdraw(bob, 0 ether);
         vm.stopPrank();
+
+        // If the withdrawal amount is greater than the deposit amount, 
+        // the function will revert.
+        vm.expectRevert(LendingPool.AmountMustBeLess.selector);
+        lend.withdraw(address(bob), 3 ether);
 
 
         // Check that user is not the address 0.
@@ -180,13 +189,13 @@ contract LendingPoolTest is Test {
         lend.withdraw(bob, 2 ether);
 
         // Chec that bob has recieve 2 WETH + rewards.
-        assertEq(iercTokenWeth.balanceOf(address(bob)), 100 ether + rewards);
+        assertEq(iercWeth.balanceOf(address(bob)), 100 ether + rewards);
 
         // Check that bob does not have 2 ATokens.
         assertEq(iercAToken.balanceOf(address(bob)), 0 ether);
 
         // Save the Bob's balance for checking after borrow, repay and withdraw.
-        uint256 balBob = iercTokenWeth.balanceOf(address(bob));
+        uint256 balBob = iercWeth.balanceOf(address(bob));
 
         // Chech that the variable substracts 1 after the withdrawal.
         assertEq(lend.totalSupplies(), supplies - 1);
@@ -196,7 +205,7 @@ contract LendingPoolTest is Test {
 
         // The withdraw function only works if the status is equal to SUPPLIER.
         // If data.stste is equal to BORROER, the function will revert.
-        iercTokenWeth.approve(address(lend), 2 ether);
+        iercWeth.approve(address(lend), 2 ether);
         lend.deposit(bob, 2 ether);
         lend.borrow(bob, 0.80 ether); //state.BORROWER.
 
@@ -208,21 +217,21 @@ contract LendingPoolTest is Test {
         
         uint256 interest = lend.calculateInterest(0.80 ether, address(bob));
         uint256 amountToRepay = 0.80 ether + interest;
-        iercTokenWeth.approve(address(lend), amountToRepay);
+        iercWeth.approve(address(lend), amountToRepay);
 
         // When the loan is paid, the withdraw function works.
         lend.repay(bob, 0.80 ether);
         lend.withdraw(bob, 2 ether);
 
         // Check Bob's balance.
-        assertEq(iercTokenWeth.balanceOf(address(bob)), balBob - interest + rewards);
-
+        assertEq(iercWeth.balanceOf(address(bob)), balBob - interest + rewards);
+        
     }
 
     function testBorrow() public {
         // Check that user is not the address 0.
         vm.startPrank(address(0));
-        iercTokenWeth.approve(address(lend), 1 ether);
+        iercWeth.approve(address(lend), 1 ether);
         vm.expectRevert(LendingPool.addressCannotBe0x0.selector);
         lend.deposit(address(0), 1 ether);
         vm.stopPrank();
@@ -233,7 +242,7 @@ contract LendingPoolTest is Test {
         lend.borrow(address(bob), 0.80 ether);
 
         // Deposit 2 WETH Tokens.
-        iercTokenWeth.approve(address(lend), 2 ether);
+        iercWeth.approve(address(lend), 2 ether);
         lend.deposit(address(bob), 2 ether);
 
         // Save the value for checking after the borrow.
@@ -257,7 +266,7 @@ contract LendingPoolTest is Test {
         lend.borrow(address(bob), 0.80 ether);
 
         // Check that alice has the loan.
-        assertEq(iercTokenWeth.balanceOf(address(bob)), 1.8 ether);
+        assertEq(iercWeth.balanceOf(address(bob)), 1.8 ether);
 
         // Check has receive DebTokens.
         assertEq(iercDebToken.balanceOf(address(bob)), 0.80 ether);
@@ -289,7 +298,7 @@ contract LendingPoolTest is Test {
         lend.repay(address(bob), 3 ether);
 
         // Deposit 2 WETH Tokens and borrow 0.80 WETH Tokens.
-        iercTokenWeth.approve(address(lend), 3 ether);
+        iercWeth.approve(address(lend), 3 ether);
         lend.deposit(address(bob), 3 ether); 
         lend.borrow(address(bob), 0.80 ether);
 
@@ -297,24 +306,23 @@ contract LendingPoolTest is Test {
         vm.expectRevert(LendingPool.AmountCannotBe0.selector);
         lend.repay(address(bob), 0 ether);
 
+        // If the amount to be paid is greater than the amount borrowed, 
+        // the function will revert.
+        vm.expectRevert(LendingPool.AmountExceedsDebt.selector);
+        lend.repay(address(bob), 1 ether);
+
         // If the user has not suficient WETH in his wallet, the funcion will revert.
         uint256 interest = lend.calculateInterest(0.80 ether, address(bob));
         uint256 amountToRepay = 0.80 ether + interest;
-        iercTokenWeth.approve(address(lend), amountToRepay);
+        iercWeth.approve(address(lend), amountToRepay);
         vm.expectRevert(LendingPool.InsuficientWeth.selector);
-        lend.repay(address(bob), amountToRepay);
+        lend.repay(address(bob), 0.80 ether);
 
         // Give to Bob 200 WETH more to pay the loan.
-        deal(address(iercTokenWeth), bob, 200 ether);
-        console.log(iercTokenWeth.balanceOf(address(bob)));
-        // if the amount passed by the parameter
-        // is greater than the amount of the user's debtTokens, 
-        // the function will revert.
-        vm.expectRevert(stdError.arithmeticError);
-        lend.repay(address(bob), 1 ether);
+        deal(address(iercWeth), bob, 200 ether);      
 
         // Approve to LendinPool to move amount to repay.
-        iercTokenWeth.approve(address(lend), amountToRepay);
+        iercWeth.approve(address(lend), amountToRepay);
 
         // Check the repay emit.
         vm.expectEmit(true, false, false, true, address(lend));
@@ -324,13 +332,28 @@ contract LendingPoolTest is Test {
         lend.repay(address(bob), 0.80 ether);
 
         // Check Bob's balance,
-        assertEq(iercTokenWeth.balanceOf(address(bob)), 200 ether - amountToRepay);
+        assertEq(iercWeth.balanceOf(address(bob)), 200 ether - amountToRepay);
 
         // Chech that Bob has no DebTokens.
         assertEq(iercDebToken.balanceOf(address(bob)), 0 ether);
-   
         
     }
 
-   
+    function testRatesUpdate() public {
+        // Only the owner can call this function,
+        // If the caller no is not the ownner the function will revert.
+        vm.expectRevert();
+        lend.ratesUpdate(4 ether, 4 ether);
+
+        // The owner calls the function.
+        vm.prank(owner);
+        lend.ratesUpdate(4 ether, 4 ether);
+
+        // Check that the variables are updated correctly.
+        assertEq(lend.rewardsRate(), 4 ether);
+        assertEq(lend.interestRate(), 4 ether);
+        
+    }
+
+  
 }  

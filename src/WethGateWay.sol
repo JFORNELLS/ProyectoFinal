@@ -38,21 +38,26 @@ contract WethGateWay {
         debtoken = DebToken(_debtoken);
         iercDebToken = IERC20(_debtoken);
     }
+
     
-    
+
     function depositETH() public payable {
-        uint256 amount = msg.value;
         address user = msg.sender;
 
-        iweth.deposit{value: amount}();
-        iercWeth.approve(address(lend), amount);
-        lend.deposit(user, amount);
+        iweth.deposit{value: msg.value}();
+        iercWeth.approve(address(lend), msg.value);
+        lend.deposit(user, msg.value);
 
     }
 
+
     function withdrawETH(uint256 amount) public payable {
         address user = msg.sender;
-        iercAToken.transferFrom(msg.sender, address(this), amount);
+
+        require(
+            iercAToken.transferFrom(msg.sender, address(this), amount),
+            "Error Sending ATokens"
+        );
         
         iercAToken.approve(address(lend), amount);
         lend.withdraw(user, amount);
@@ -60,30 +65,51 @@ contract WethGateWay {
         uint256 amountToWithdraw = amount + lend.calculateRewards(amount, user);
         iweth.withdraw(amountToWithdraw);
         (bool success, ) = msg.sender.call{value: amountToWithdraw}("");
-        require(success, "Error Send ETH");
+        require(success, "Error sending ETH to user");
+
     } 
+
 
     function borrowETH(uint256 amount) public payable {
         address user = msg.sender;
         lend.borrow(user, amount);
         iweth.withdraw(amount);
         (bool success, ) = msg.sender.call{value: amount}("");
-        require(success, "Error Send ETH");
+        require(success, "Error sending ETH to user");
+
     }
+
 
     function repayETH(uint256 amount) public payable {
         address user = msg.sender;
-        lend.calculateInterest(amount, user);
+
         uint256 interest = lend.calculateInterest(amount, user);
         uint256 amountToRepay = amount + interest;
-        iweth.deposit{value: msg.value}();
+
+        uint256 refundAmount = msg.value - amountToRepay;
+        if (refundAmount > 0) {
+            iweth.deposit{value: refundAmount}();
+            (bool success, ) = msg.sender.call{value: refundAmount}("");
+            require(success, "Error sending excess ETH back to the user");
+        } 
+
+        iweth.deposit{value: amountToRepay}();
         iercWeth.approve(address(lend), amountToRepay);
-        iercDebToken.transferFrom(msg.sender, address(this), amount);
+
+        require(
+            iercDebToken.transferFrom(msg.sender, address(this), amount),
+            "Error Sending DebTokens"
+        );
+        
         lend.repay(user, amount);
+        
+       
+        
+    }
         
           
 
-    }
+    
 
     
     receive() external payable {}
