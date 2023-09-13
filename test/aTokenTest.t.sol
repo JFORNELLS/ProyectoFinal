@@ -82,8 +82,8 @@ contract ATokenTest is Test {
 
     function testBurnAToken() public {
         //If the caller is not LendingPool the function will revert.
-        //vm.expectRevert();
-        //atoken.burnAToken(alice, 5 ether);
+        vm.expectRevert();
+        atoken.burnAToken(alice, 5 ether);
 
         // If the caller is LendingPool the function works.
         vm.startPrank(address(lend));
@@ -103,6 +103,7 @@ contract ATokenTest is Test {
         // Check that total supply has decreased by 5 ATokens.
         assertEq(atoken.totalSupply(), supply - 5 ether);
     }
+    
     
     
 }

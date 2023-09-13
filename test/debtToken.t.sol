@@ -30,7 +30,7 @@ contract DebTokenTest is Test {
     AToken public atoken;
     address public alice;
     address public owner;
-    
+
 
     function setUp() public {
 
@@ -61,11 +61,11 @@ contract DebTokenTest is Test {
 
     function testMintDebtToken() public {
         // If the caller is not LendingPool the function will revert.
-        //vm.expectRevert();
-        //debtoken.mintDebToken(alice, 10 ether);
+        vm.expectRevert();
+        debtoken.mintDebToken(alice, 10 ether);
 
         // If the caller is LendingPool the function works.
-        vm.startPrank(alice);
+        vm.startPrank(address(lend));
         uint256 supply = debtoken.totalSupply();
 
         // Ckeck the DebtAToken event.
@@ -84,11 +84,11 @@ contract DebTokenTest is Test {
 
     function testBurndDebtToken() public {
         //If the caller is not LendingPool the function will revert.
-        //vm.expectRevert();
-        //debtoken.burnDebToken(alice, 5 ether);
+        vm.expectRevert();
+        debtoken.burnDebToken(alice, 5 ether);
 
         // If the caller is LendingPool the function works.
-        vm.startPrank(alice);
+        vm.startPrank(address(lend));
         debtoken.mintDebToken(alice, 10 ether);
         assertEq(debtoken.balanceOf(alice), 10 ether);
         uint256 supply = debtoken.totalSupply();

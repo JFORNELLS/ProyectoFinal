@@ -9,81 +9,61 @@ import "../src/DebToken.sol";
 import "../src/AToken.sol";
 import "../lib/solmate/src/tokens/WETH.sol";
 
-
 contract WethGateWayTest is Test {
+    event Deposited(address indexed user, uint256 amount);
 
-    
+    event Withdrawn(address indexed user, uint256 amount, uint256 rewards);
 
-    event Deposited(
-        address indexed user,
-        uint256 amount
-    );
+    event Borrowed(address indexed user, uint256 amount);
 
-    event Withdrawn(
-        address indexed user,
-        uint256 amount,
-        uint256 rewards
-    );
-
-    event Borrowed(
-        address indexed user,
-        uint256 amount
-    );
-
-    event Repaied(
-        address indexed user,
-        uint256 amount,
-        uint256 interest
-    );
+    event Repaied(address indexed user, uint256 amount, uint256 interest);
 
     WETH public weth;
     IERC20 public iercWeth;
     IERC20 public iercAToken;
     IERC20 public iercDebToken;
     address public alice;
-    AToken public atoken; 
+    AToken public atoken;
     DebToken public debtoken;
     LendingPool public lend;
     WethGateWay public gateway;
     address public owner;
- 
 
     function setUp() public {
+        debtoken = new DebToken(
+            payable(0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9)
+        );
+        atoken = new AToken(
+            payable(0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9)
+        );
         weth = new WETH();
-        debtoken = new DebToken(payable(address(lend)));
-        atoken = new AToken(payable(address(lend)));
-        
 
         lend = new LendingPool(
-            address(atoken), 
-            address(debtoken), 
-            payable(address(weth)), 
+            address(atoken),
+            address(debtoken),
+            payable(address(weth)),
             payable(address(gateway)),
             address(owner)
-            );
+        );
 
         gateway = new WethGateWay(
-            address(atoken), 
-            lend, 
-            address(weth), 
+            address(atoken),
+            lend,
+            address(weth),
             address(debtoken)
-            );
+        );
 
         iercDebToken = IERC20(address(debtoken));
         iercAToken = IERC20(address(atoken));
         iercWeth = IERC20(address(weth));
-        
+
         alice = makeAddr("alice");
         vm.deal(alice, 100 ether);
         vm.deal(address(0), 1 ether);
         vm.deal(address(lend), 10 ether);
         deal(address(debtoken), address(0), 1 ether);
         vm.deal(address(gateway), 3 ether);
-        
-        
-        
     }
-    
 
     function testDepositETH() public {
         // Check that user is not tHE address 0.
@@ -112,7 +92,6 @@ contract WethGateWayTest is Test {
         // Deposit 2 ether.
         gateway.depositETH{value: 2 ether}();
 
-
         // Check that alice has 2 ether less.
         assertEq(address(alice).balance, 98 ether);
 
@@ -128,7 +107,6 @@ contract WethGateWayTest is Test {
         // If data.state in not equal to INITIAL, the function will revert.
         vm.expectRevert(LendingPool.AlreadyHaveADeposit.selector);
         gateway.depositETH{value: 2 ether}();
-
     }
 
     function testWithdrawETH() public {
@@ -144,11 +122,10 @@ contract WethGateWayTest is Test {
 
         // Deposit 3 ether.
         gateway.depositETH{value: 3 ether}();
-        
 
         // Check that alice has received 2 AToken.
         assertEq(iercAToken.balanceOf(address(alice)), 3 ether);
-       
+
         // Save the profit calculation to check alice's balance.
         uint256 rewards = lend.calculateRewards(3 ether, address(alice));
 
@@ -178,8 +155,7 @@ contract WethGateWayTest is Test {
         // Check that the variable is updated with the amount of the withdrawal.
         assertEq(lend.balanceSupply(), balSupply - 3 ether);
 
-        
-        // If the user does not have ATokens, 
+        // If the user does not have ATokens,
         // they will not be able to use the withdraw function and will revert
         vm.expectRevert(stdError.arithmeticError);
         gateway.withdrawETH(1 ether);
@@ -189,27 +165,24 @@ contract WethGateWayTest is Test {
         vm.expectRevert(LendingPool.AmountCannotBe0.selector);
         gateway.withdrawETH(0 ether);
 
-
         // The withdraw function only works if the status is equal to SUPPLIER.
-        // If data.stste is equal to BORROER, the function will revert. 
-        gateway.borrowETH(1 ether);   //state = BORROWER
+        // If data.stste is equal to BORROER, the function will revert.
+        gateway.borrowETH(1 ether); //state = BORROWER
         iercAToken.approve(address(gateway), 1 ether);
 
         // If the loan has not been paid, the withdraw function will revert.
-        vm.expectRevert(LendingPool.MustRepayTheLoan__ThereIsNoDeposit.selector);
+        vm.expectRevert(
+            LendingPool.MustRepayTheLoan__ThereIsNoDeposit.selector
+        );
         gateway.withdrawETH(1 ether);
 
         // When the loan is paid, the withdraw function works.
         uint256 interest = lend.calculateInterest(1 ether, address(alice));
         uint256 amountToRepay = 1 ether + interest;
         iercDebToken.approve(address(gateway), 1 ether);
-        gateway.repayETH{value: amountToRepay}(1 ether);   //state = SUPPLIER
+        gateway.repayETH{value: amountToRepay}(1 ether); //state = SUPPLIER
         iercAToken.approve(address(gateway), 3 ether);
-        gateway.withdrawETH(3 ether);      
-
-
-
-       
+        gateway.withdrawETH(3 ether);
     }
 
     function testBorrowETH() public {
@@ -221,7 +194,9 @@ contract WethGateWayTest is Test {
 
         vm.startPrank(alice);
         // If the user has not made any deposit, the function will revert.
-        vm.expectRevert(LendingPool.ThereIsNoDeposit_AlreadyRequestedALoan.selector);
+        vm.expectRevert(
+            LendingPool.ThereIsNoDeposit_AlreadyRequestedALoan.selector
+        );
         gateway.borrowETH(0.80 ether);
 
         gateway.depositETH{value: 2 ether}();
@@ -258,18 +233,18 @@ contract WethGateWayTest is Test {
         assertEq(lend.totalBorrows(), borrows + 1);
 
         // If the user has already borrowed, they will not be able to borrow again.
-        vm.expectRevert(LendingPool.ThereIsNoDeposit_AlreadyRequestedALoan.selector);
+        vm.expectRevert(
+            LendingPool.ThereIsNoDeposit_AlreadyRequestedALoan.selector
+        );
         gateway.borrowETH(0.40 ether);
-
     }
 
     function testRepayETH() public {
-         // Check that user is not tHE address 0.
+        // Check that user is not tHE address 0.
         vm.startPrank(address(0));
         vm.expectRevert(LendingPool.addressCannotBe0x0.selector);
         gateway.depositETH{value: 1 ether}();
         vm.stopPrank();
-        
 
         vm.startPrank(alice);
 
@@ -300,7 +275,7 @@ contract WethGateWayTest is Test {
         // the function will revert.
         vm.expectRevert(stdError.arithmeticError);
         gateway.repayETH{value: amountToRepay}(1 ether);
-        
+
         // Save the values for checking after the repay.
         uint256 aliceBalance = address(alice).balance;
         uint256 balBorrow = lend.balanceBorrow();
@@ -323,9 +298,9 @@ contract WethGateWayTest is Test {
         assertEq(lend.balanceBorrow(), balBorrow - 0.80 ether);
 
         // Chech that the variable substracts 1 after the repay.
-        assertEq(lend.totalBorrows(), borrows - 1); 
+        assertEq(lend.totalBorrows(), borrows - 1);
 
-        // If the user sends an amount greater than the amount to be paid, 
+        // If the user sends an amount greater than the amount to be paid,
         // the function returns the amount exceeded to the user
         gateway.borrowETH(0.80 ether);
         uint256 aliceBal = address(alice).balance;
@@ -336,10 +311,7 @@ contract WethGateWayTest is Test {
 
         // Check that only the amount to be paid is subtracted from Alice's balance.
         assertEq(address(alice).balance, aliceBal - amountToRepay);
-
-
     }
 
     receive() external payable {}
 }
- 
