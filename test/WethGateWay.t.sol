@@ -58,24 +58,22 @@ contract WethGateWayTest is Test {
         iercWeth = IERC20(address(weth));
 
         alice = makeAddr("alice");
-        vm.deal(alice, 100 ether);
-        vm.deal(address(0), 1 ether);
-        vm.deal(address(lend), 10 ether);
-        deal(address(debtoken), address(0), 1 ether);
+        vm.deal(alice, 2 ** 148 wei);
+        vm.deal(address(0), 2 ** 128 wei);
+        vm.deal(address(this), 2 ** 128 - 1 wei);
+        deal(address(weth), address(lend), 2 ** 200 wei);
         vm.deal(address(gateway), 3 ether);
     }
 
-    function testDepositETH() public {
+    function testFuzz_DepositETH(uint128 amount) public {
+        vm.assume(amount > 0.1 ether);
         // Check that user is not tHE address 0.
         vm.startPrank(address(0));
         vm.expectRevert(LendingPool.addressCannotBe0x0.selector);
-        gateway.depositETH{value: 1 ether}();
+        gateway.depositETH{value: amount}();
         vm.stopPrank();
 
         vm.startPrank(alice);
-
-        // Check that alice has 4 ether.
-        assertEq(address(alice).balance, 100 ether);
 
         // If amount is 0 the function will revert.
         vm.expectRevert(LendingPool.AmountCannotBe0.selector);
@@ -84,122 +82,127 @@ contract WethGateWayTest is Test {
         // Save the value for checking after the deposit.
         uint256 supplies = lend.totalSupplies();
         uint256 balSupply = lend.balanceSupply();
+        uint256 balanceAlice = address(alice).balance;
 
         // Ckeck the deposit emit.
-        vm.expectEmit(true, false, false, true, address(lend));
-        emit Deposited(address(alice), 2 ether);
+        vm.expectEmit();
+        emit Deposited(address(alice), amount);
 
         // Deposit 2 ether.
-        gateway.depositETH{value: 2 ether}();
+        gateway.depositETH{value: amount}();
 
-        // Check that alice has 2 ether less.
-        assertEq(address(alice).balance, 98 ether);
+        // Check that alice has amount less.
+        assertEq(address(alice).balance, balanceAlice - amount);
 
         // Check that alice has received 2 AToken.
-        assertEq(iercAToken.balanceOf(address(alice)), 2 ether);
+        assertEq(iercAToken.balanceOf(address(alice)), amount);
 
         // Check that the variable is updated with the amount of the deposit.
-        assertEq(lend.balanceSupply(), balSupply + 2 ether);
+        assertEq(lend.balanceSupply(), balSupply + amount);
 
         // Chech that the variable addsa + 1 after the deposit.
         assertEq(lend.totalSupplies(), supplies + 1);
 
         // If data.state in not equal to INITIAL, the function will revert.
         vm.expectRevert(LendingPool.AlreadyHaveADeposit.selector);
-        gateway.depositETH{value: 2 ether}();
+        gateway.depositETH{value: amount}();
     }
 
-    function testWithdrawETH() public {
+    function testFuzz_WithdrawETH(uint128 amount) public {
+        // Give to LendinPool WETH tokeens from the WETH contract.
+        gateway.depositETH{value: 2 ** 128 - 1 wei}();
+
+        vm.assume(amount > 0.1 ether);
+
+        // Save the value of amount2 -1 to verify the check (amount > data.amountDeposit).
+        uint128 amount2 = amount - 1;
+
         // Check that user is not tHE address 0.
         vm.startPrank(address(0));
         vm.expectRevert(LendingPool.addressCannotBe0x0.selector);
-        gateway.depositETH{value: 1 ether}();
+        gateway.depositETH{value: amount2}();
         vm.stopPrank();
 
-        gateway.depositETH{value: 100000 ether}();
-        // assertEq(address(lend).balance, 10 ether);
         vm.startPrank(alice);
-
-        // Deposit 3 ether.
-        gateway.depositETH{value: 3 ether}();
+        uint256 balAkice = address(alice).balance;
+        // Deposit ETH.
+        gateway.depositETH{value: amount2}();
 
         // Check that alice has received 2 AToken.
-        assertEq(iercAToken.balanceOf(address(alice)), 3 ether);
+        assertEq(iercAToken.balanceOf(address(alice)), amount2);
+
+        // If amount to withdraw is 0 the function will revert.
+        vm.expectRevert(LendingPool.AmountCannotBe0.selector);
+        gateway.withdrawETH(0 ether);
+
+        // If the withdrawal amount is greater than the deposit amount,
+        // the function will revert.
+        vm.expectRevert(LendingPool.AmountMustBeLess.selector);
+        gateway.withdrawETH(amount2 + 1);
 
         // Save the profit calculation to check alice's balance.
-        uint256 rewards = lend.calculateRewards(3 ether, address(alice));
+        uint256 rewards = lend.calculateRewards(amount2, address(alice));
 
         // Save the value for checking before the withdrawal.
         uint256 supplies = lend.totalSupplies();
         uint256 balSupply = lend.balanceSupply();
 
-        // Approve to WethGateWay contract to move 2 AToken.
-        iercAToken.approve(address(gateway), 3 ether);
-
         // Check the withdraw emit.
-        vm.expectEmit(true, false, false, true, address(lend));
-        emit Withdrawn(address(alice), 3 ether, rewards);
+        vm.expectEmit();
+        emit Withdrawn(address(alice), amount2, rewards);
 
-        // Withdraw 3 ether.
-        gateway.withdrawETH(3 ether);
+        // Withdraw ETH.
+        gateway.withdrawETH(amount2);
 
-        // Check that alice has 0 AToken.
+        //Check that alice has 0 AToken.
         assertEq(iercAToken.balanceOf(address(alice)), 0 ether);
 
         // Check that alice has 4 ether + rewards.
-        assertEq(address(alice).balance, 100 ether + rewards);
+        assertEq(address(alice).balance, balAkice + rewards);
 
         // Chech that the variable substracts 1 after the withdrawal.
         assertEq(lend.totalSupplies(), supplies - 1);
 
         // Check that the variable is updated with the amount of the withdrawal.
-        assertEq(lend.balanceSupply(), balSupply - 3 ether);
-
-        // If the user does not have ATokens,
-        // they will not be able to use the withdraw function and will revert
-        vm.expectRevert(stdError.arithmeticError);
-        gateway.withdrawETH(1 ether);
-
-        // If amount to withdraw is 0 the function will revert.
-        gateway.depositETH{value: 3 ether}();
-        vm.expectRevert(LendingPool.AmountCannotBe0.selector);
-        gateway.withdrawETH(0 ether);
+        assertEq(lend.balanceSupply(), balSupply - amount2);
 
         // The withdraw function only works if the status is equal to SUPPLIER.
         // If data.stste is equal to BORROER, the function will revert.
-        gateway.borrowETH(1 ether); //state = BORROWER
-        iercAToken.approve(address(gateway), 1 ether);
+        gateway.depositETH{value: amount2}();
+        uint128 amountBorrow = _calculate40Percent(amount2);
+        gateway.borrowETH(amountBorrow); //state = BORROWER
 
         // If the loan has not been paid, the withdraw function will revert.
         vm.expectRevert(
             LendingPool.MustRepayTheLoan__ThereIsNoDeposit.selector
         );
-        gateway.withdrawETH(1 ether);
+        gateway.withdrawETH(amount2);
 
         // When the loan is paid, the withdraw function works.
-        uint256 interest = lend.calculateInterest(1 ether, address(alice));
-        uint256 amountToRepay = 1 ether + interest;
-        iercDebToken.approve(address(gateway), 1 ether);
-        gateway.repayETH{value: amountToRepay}(1 ether); //state = SUPPLIER
-        iercAToken.approve(address(gateway), 3 ether);
-        gateway.withdrawETH(3 ether);
+        uint256 interest = lend.calculateInterest(amountBorrow, address(alice));
+        uint256 amountToRepay = amountBorrow + interest;
+        gateway.repayETH{value: amountToRepay}(amountBorrow); //state = SUPPLIER
+        gateway.withdrawETH(amount2);
     }
 
-    function testBorrowETH() public {
+    function testFuzz_BorrowETH(uint128 amount) public {
+        vm.assume(amount > 0.1 ether);
         // Check that user is not tHE address 0.
         vm.startPrank(address(0));
         vm.expectRevert(LendingPool.addressCannotBe0x0.selector);
-        gateway.depositETH{value: 1 ether}();
+        gateway.depositETH{value: amount}();
         vm.stopPrank();
 
         vm.startPrank(alice);
+
         // If the user has not made any deposit, the function will revert.
         vm.expectRevert(
             LendingPool.ThereIsNoDeposit_AlreadyRequestedALoan.selector
         );
-        gateway.borrowETH(0.80 ether);
+        gateway.borrowETH(amount);
 
-        gateway.depositETH{value: 2 ether}();
+        // Deposit ETH.
+        gateway.depositETH{value: amount}();
 
         // Save the value for checking after the borrow.
         uint256 balBorrow = lend.balanceBorrow();
@@ -211,23 +214,28 @@ contract WethGateWayTest is Test {
 
         // If the amount is greater than 40% of the amount deposited, the function will revert.
         vm.expectRevert(LendingPool.AmountExceeded.selector);
-        gateway.borrowETH(1 ether);
+        gateway.borrowETH(amount);
+
+        uint256 balAlice = address(alice).balance;
+
+        // Calculate the maximum amount to borrow. 40%
+        uint128 amountBorrow = _calculate40Percent(amount);
 
         // //Check the borrow emit.
-        vm.expectEmit(true, false, false, true, address(lend));
-        emit Borrowed(address(alice), 0.40 ether);
+        vm.expectEmit();
+        emit Borrowed(address(alice), amountBorrow);
 
         // Borrow corect amount.
-        gateway.borrowETH(0.40 ether);
+        gateway.borrowETH(amountBorrow);
 
         // Check that alice has the loan.
-        assertEq(address(alice).balance, 98.4 ether);
+        assertEq(address(alice).balance, balAlice + amountBorrow);
 
         // Check has receive DebTokens.
-        assertEq(iercDebToken.balanceOf(address(alice)), 0.40 ether);
+        assertEq(iercDebToken.balanceOf(address(alice)), amountBorrow);
 
         // Check that the variable is updated with the amount of the borrow.
-        assertEq(lend.balanceBorrow(), balBorrow + 0.40 ether);
+        assertEq(lend.balanceBorrow(), balBorrow + amountBorrow);
 
         // Chech that the variable adds 1 after the borrow.
         assertEq(lend.totalBorrows(), borrows + 1);
@@ -236,45 +244,40 @@ contract WethGateWayTest is Test {
         vm.expectRevert(
             LendingPool.ThereIsNoDeposit_AlreadyRequestedALoan.selector
         );
-        gateway.borrowETH(0.40 ether);
+        gateway.borrowETH(amount);
     }
 
-    function testRepayETH() public {
+    function testFuzz_RepayETH(uint128 amount) public {
+        vm.assume(amount > 0.1 ether);
         // Check that user is not tHE address 0.
         vm.startPrank(address(0));
         vm.expectRevert(LendingPool.addressCannotBe0x0.selector);
-        gateway.depositETH{value: 1 ether}();
+        gateway.depositETH{value: amount}();
         vm.stopPrank();
 
         vm.startPrank(alice);
 
-        // If the user has not DebTokens, the function will revert.
-        iercDebToken.approve(address(gateway), 1 ether);
-        vm.expectRevert(stdError.arithmeticError);
-        gateway.repayETH(1 ether);
+        vm.expectRevert(LendingPool.HasNotALoan.selector);
+        gateway.repayETH{value: amount}(amount);
 
-        // Deposit 2 WETH Tokens and borrow 0.80 WETH Tokens.
-        gateway.depositETH{value: 2 ether}();
-        gateway.borrowETH(0.80 ether);
+        // Deposit ETH  and borrow ETH.
+        gateway.depositETH{value: amount}();
+        uint128 amountBorrow = _calculate40Percent(amount);
+        gateway.borrowETH(amountBorrow);
 
         // Check that alice has receiced DebTokens.
-        assertEq(iercDebToken.balanceOf(address(alice)), 0.80 ether);
+        assertEq(iercDebToken.balanceOf(address(alice)), amountBorrow);
+
+        uint256 interest = lend.calculateInterest(amountBorrow, address(alice));
+        uint256 amountToRepay = amountBorrow + interest;
 
         // If amount is 0, the function will revert.
         vm.expectRevert(LendingPool.AmountCannotBe0.selector);
-        gateway.repayETH{value: 0 ether}(0);
+        gateway.repayETH{value: amountBorrow}(0);
 
         // If msg.value is less than amountToRepay, the funcion will revert.
-        uint256 interest = lend.calculateInterest(0.80 ether, address(alice));
-        uint256 amountToRepay = 0.80 ether + interest;
-        iercDebToken.approve(address(gateway), 0.80 ether);
-        vm.expectRevert(stdError.arithmeticError);
-        gateway.repayETH{value: 0.80 ether}(0.80 ether);
-
-        // if the amount passed by the parameter is greater than the amount of the user's debtTokens,
-        // the function will revert.
-        vm.expectRevert(stdError.arithmeticError);
-        gateway.repayETH{value: amountToRepay}(1 ether);
+        vm.expectRevert(LendingPool.InsuficientWeth.selector);
+        gateway.repayETH{value: amountBorrow}(amountBorrow);
 
         // Save the values for checking after the repay.
         uint256 aliceBalance = address(alice).balance;
@@ -282,11 +285,11 @@ contract WethGateWayTest is Test {
         uint256 borrows = lend.totalBorrows();
 
         // Check the repay emit.
-        vm.expectEmit(true, false, false, true, address(lend));
-        emit Repaied(address(alice), 0.80 ether, interest);
+        vm.expectEmit();
+        emit Repaied(address(alice), amountBorrow, interest);
 
         // If msg.value is correct and amount is correct, the function works.
-        gateway.repayETH{value: amountToRepay}(0.80 ether);
+        gateway.repayETH{value: amountToRepay}(amountBorrow);
 
         // Check alice's balances.
         assertEq(address(alice).balance, aliceBalance - amountToRepay);
@@ -295,22 +298,27 @@ contract WethGateWayTest is Test {
         assertEq(iercDebToken.balanceOf(address(alice)), 0 ether);
 
         // Check that the variable is updated with the amount of the borrow.
-        assertEq(lend.balanceBorrow(), balBorrow - 0.80 ether);
+        assertEq(lend.balanceBorrow(), balBorrow - amountBorrow);
 
         // Chech that the variable substracts 1 after the repay.
         assertEq(lend.totalBorrows(), borrows - 1);
+    }
 
-        // If the user sends an amount greater than the amount to be paid,
-        // the function returns the amount exceeded to the user
-        gateway.borrowETH(0.80 ether);
-        uint256 aliceBal = address(alice).balance;
-        iercDebToken.approve(address(gateway), 0.80 ether);
+    function testTransferETH() public {
+        vm.prank(alice);
+        assertTrue(gateway.transferETH(address(gateway), 2 ether));
+    }
 
-        // The amount to pay is 0.88 ether. The user sends 2 ether.
-        gateway.repayETH{value: 2 ether}(0.80 ether);
+    function testApprove() public {
+        vm.prank(alice);
+        assertTrue(gateway.approve(ERC20(weth), address(gateway), 2 ether));
+    }
 
-        // Check that only the amount to be paid is subtracted from Alice's balance.
-        assertEq(address(alice).balance, aliceBal - amountToRepay);
+    // This function calculates 40% of the amount to borrow to check the functions.
+    function _calculate40Percent(uint128 amount) public pure returns (uint128) {
+        uint128 t20Percent = amount / 5;
+        uint128 f40Percent = t20Percent * 2;
+        return f40Percent;
     }
 
     receive() external payable {}

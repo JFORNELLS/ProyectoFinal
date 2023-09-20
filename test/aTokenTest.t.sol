@@ -67,7 +67,7 @@ contract ATokenTest is Test {
         uint256 supply = atoken.totalSupply();
 
         // Ckeck the MintAToken event.
-        vm.expectEmit(true, false, false, true, address(atoken));
+        vm.expectEmit();
         emit MintAToken(address(alice), 10 ether);
 
         // Mint to alice 10 ATokens.
@@ -91,7 +91,7 @@ contract ATokenTest is Test {
         uint256 supply = atoken.totalSupply();
 
         // Ckeck the MintAToken event.
-        vm.expectEmit(true, false, false, true, address(atoken));
+        vm.expectEmit();
         emit BurnAToken(address(alice), 5 ether);
 
         // Burn 5 ATokens from alice's balance.

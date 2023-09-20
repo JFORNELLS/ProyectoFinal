@@ -5,6 +5,7 @@ import "src/WethGateWay.sol";
 import "../src/AToken.sol";
 import "../src/DebToken.sol";
 import "../lib/solmate/src/tokens/WETH.sol";
+import "../lib/solmate/src/utils/SafeTransferLib.sol";
 
 interface IAToken {
     function mintAToken(address to, uint256 amount) external;
@@ -40,6 +41,7 @@ contract LendingPool {
     error addressCannotBe0x0();
     error InsuficientAmountDeposit();
     error AmountExceedsDebt();
+    error OverFlow();
 
     enum State {
         INITIAL,
@@ -66,8 +68,6 @@ contract LendingPool {
     IDebToken public immutable debtoken;
     WETH public immutable tokenWeth;
     WethGateWay public immutable gateway;
-    IERC20 public immutable iercAToken;
-    IERC20 public immutable iercDebToken;
     IERC20 public immutable iercWeth;
     address private immutable owner;
 
@@ -80,8 +80,6 @@ contract LendingPool {
     ) {
         atoken = IAToken(_atoken);
         debtoken = IDebToken(_debtoken);
-        iercAToken = IERC20(_atoken);
-        iercDebToken = IERC20(_debtoken);
         tokenWeth = WETH(_tokenWeth);
         iercWeth = IERC20(_tokenWeth);
         gateway = WethGateWay(_gateway);
@@ -105,7 +103,7 @@ contract LendingPool {
             totalSupplies++;
         }
 
-        iercWeth.transferFrom(msg.sender, address(this), amount);
+        transferFrom(ERC20(tokenWeth), msg.sender, address(this), amount);
 
         IAToken(address(atoken)).mintAToken(user, amount);
 
@@ -133,11 +131,8 @@ contract LendingPool {
             totalSupplies--;
         }
 
-        iercAToken.transferFrom(msg.sender, address(this), amount);
-
-        iercWeth.transfer(msg.sender, amountToWithdraw);
-
-        IAToken(address(atoken)).burnAToken(address(this), amount);
+        transfer(ERC20(tokenWeth), msg.sender, amountToWithdraw);
+        IAToken(address(atoken)).burnAToken(user, amount);
 
         emit Withdrawn(user, amount, rewards);
     }
@@ -150,7 +145,7 @@ contract LendingPool {
         if (data.state != State.SUPPLIER)
             revert ThereIsNoDeposit_AlreadyRequestedALoan();
 
-        uint256 maxAmountToBorrow = maxAmountLoan(user);
+        uint256 maxAmountToBorrow = _maxAmountLoan(user);
         if (amount > maxAmountToBorrow) revert AmountExceeded();
 
         data.amountBorrowed = amount;
@@ -162,8 +157,7 @@ contract LendingPool {
             totalBorrows++;
         }
 
-        iercWeth.transfer(msg.sender, amount);
-
+        transfer(ERC20(tokenWeth), msg.sender, amount);
         IDebToken(address(debtoken)).mintDebToken(user, amount);
 
         emit Borrowed(user, amount);
@@ -192,9 +186,13 @@ contract LendingPool {
             totalBorrows--;
         }
 
-        iercWeth.transferFrom(msg.sender, address(this), amountToRepay);
-
-        IDebToken(address(debtoken)).burnDebToken(msg.sender, amount);
+        transferFrom(
+            ERC20(tokenWeth),
+            msg.sender,
+            address(this),
+            amountToRepay
+        );
+        IDebToken(address(debtoken)).burnDebToken(user, amount);
 
         emit Repaied(user, amount, interest);
     }
@@ -221,8 +219,29 @@ contract LendingPool {
         return (amount * percent) / 1e18;
     }
 
-    function maxAmountLoan(address user) internal view returns (uint256) {
+    function _maxAmountLoan(address user) internal view returns (uint256) {
         uint256 amount = supplies[user].amountDeposit;
         return (amount * 40) / 100;
     }
+
+    function transfer(
+        ERC20 asset,
+        address to,
+        uint256 amount
+    ) public returns (bool) {
+        SafeTransferLib.safeTransfer(ERC20(asset), to, amount);
+        return true;
+    }
+
+    function transferFrom(
+        ERC20 asset,
+        address from,
+        address to,
+        uint256 amount
+    ) public returns (bool) {
+        SafeTransferLib.safeTransferFrom(ERC20(asset), from, to, amount);
+        return true;
+    }
+
+    
 }

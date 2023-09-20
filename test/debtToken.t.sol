@@ -69,7 +69,7 @@ contract DebTokenTest is Test {
         uint256 supply = debtoken.totalSupply();
 
         // Ckeck the DebtAToken event.
-        vm.expectEmit(true, false, false, true, address(debtoken));
+        vm.expectEmit();
         emit MintDebToken(address(alice), 10 ether);
 
         // Mint to alice 10 DebTokens.
@@ -94,7 +94,7 @@ contract DebTokenTest is Test {
         uint256 supply = debtoken.totalSupply();
 
         // Ckeck the MintAToken event.
-        vm.expectEmit(true, false, false, true, address(debtoken));
+        vm.expectEmit();
         emit BurnDebToken(address(alice), 5 ether);
 
         // Burn 5 DebTokens from alice's balance.
