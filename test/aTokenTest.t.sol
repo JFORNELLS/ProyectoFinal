@@ -9,20 +9,10 @@ import "../lib/solmate/src/tokens/WETH.sol";
 import "../src/DebToken.sol";
 import "../lib/forge-std/src/interfaces/IERC20.sol";
 
-
 contract ATokenTest is Test {
-    
+    event MintAToken(address indexed to, uint256 amount);
 
-     event MintAToken(
-        address indexed to,
-        uint256 amount
-    );
-
-     event BurnAToken(
-        address indexed account,
-        uint256 amount
-    );
-
+    event BurnAToken(address indexed account, uint256 amount);
 
     LendingPool public lend;
     WETH public weth;
@@ -30,31 +20,27 @@ contract ATokenTest is Test {
     WethGateWay public gateway;
     AToken public atoken;
     address public alice;
-    address public owner;
 
     function setUp() public {
-        
         lend = new LendingPool(
-            address(atoken), 
-            address(debtoken), 
-            payable(address(weth)), 
-            payable(address(gateway)),
-            address(owner)
-            );  
+            address(atoken),
+            address(debtoken),
+            payable(address(weth)),
+            payable(address(gateway))
+        );
 
         gateway = new WethGateWay(
-            address(atoken), 
-            lend, 
-            address(weth), 
+            address(atoken),
+            lend,
+            address(weth),
             address(debtoken)
-            );  
+        );
 
         weth = new WETH();
         debtoken = new DebToken(payable(address(lend)));
         atoken = new AToken(payable(address(lend)));
 
         alice = makeAddr("alice");
-
     }
 
     function testMintAtoken() public {
@@ -103,8 +89,4 @@ contract ATokenTest is Test {
         // Check that total supply has decreased by 5 ATokens.
         assertEq(atoken.totalSupply(), supply - 5 ether);
     }
-    
-    
-    
 }
-    

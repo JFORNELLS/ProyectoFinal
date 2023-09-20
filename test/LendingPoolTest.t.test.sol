@@ -28,7 +28,6 @@ contract LendingPoolTest is Test {
     WethGateWay public gateway;
     LendingPool public lend;
     address public bob;
-    address public owner;
 
     function setUp() public {
         atoken = new AToken(
@@ -37,8 +36,8 @@ contract LendingPoolTest is Test {
         debtoken = new DebToken(
             payable(0xc7183455a4C133Ae270771860664b6B7ec320bB1)
         );
+
         weth = new WETH();
-        owner = makeAddr("owner");
 
         gateway = new WethGateWay(
             address(atoken),
@@ -51,8 +50,7 @@ contract LendingPoolTest is Test {
             address(atoken),
             address(debtoken),
             payable(address(weth)),
-            payable(address(gateway)),
-            address(owner)
+            payable(address(gateway))
         );
 
         iercDebToken = IERC20(address(debtoken));

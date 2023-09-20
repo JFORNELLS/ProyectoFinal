@@ -42,8 +42,7 @@ contract WethGateWayTest is Test {
             address(atoken),
             address(debtoken),
             payable(address(weth)),
-            payable(address(gateway)),
-            address(owner)
+            payable(address(gateway))
         );
 
         gateway = new WethGateWay(

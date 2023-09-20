@@ -69,21 +69,18 @@ contract LendingPool {
     WETH public immutable tokenWeth;
     WethGateWay public immutable gateway;
     IERC20 public immutable iercWeth;
-    address private immutable owner;
 
     constructor(
         address _atoken,
         address _debtoken,
         address payable _tokenWeth,
-        address payable _gateway,
-        address _owner
+        address payable _gateway
     ) {
         atoken = IAToken(_atoken);
         debtoken = IDebToken(_debtoken);
         tokenWeth = WETH(_tokenWeth);
         iercWeth = IERC20(_tokenWeth);
         gateway = WethGateWay(_gateway);
-        owner = _owner;
     }
 
     function deposit(address user, uint128 amount) external {

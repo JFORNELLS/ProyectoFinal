@@ -10,18 +10,9 @@ import "../src/AToken.sol";
 import "../lib/forge-std/src/interfaces/IERC20.sol";
 
 contract DebTokenTest is Test {
-    
+    event MintDebToken(address indexed to, uint256 amount);
 
-    event MintDebToken(
-        address indexed to,
-        uint256 amount
-    );
-
-    event BurnDebToken(
-        address indexed account,
-        uint256 amount
-    );
-
+    event BurnDebToken(address indexed account, uint256 amount);
 
     LendingPool public lend;
     WETH public weth;
@@ -29,34 +20,27 @@ contract DebTokenTest is Test {
     WethGateWay public gateway;
     AToken public atoken;
     address public alice;
-    address public owner;
-
 
     function setUp() public {
-
         lend = new LendingPool(
-            address(atoken), 
-            address(debtoken), 
-            payable(address(weth)), 
-            payable(address(gateway)),
-            address(owner)
-            );
-
+            address(atoken),
+            address(debtoken),
+            payable(address(weth)),
+            payable(address(gateway))
+        );
 
         gateway = new WethGateWay(
-            address(atoken), 
-            lend, 
-            address(weth), 
+            address(atoken),
+            lend,
+            address(weth),
             address(debtoken)
-            );    
+        );
 
         weth = new WETH();
         atoken = new AToken(payable(address(lend)));
         debtoken = new DebToken(payable(address(lend)));
 
         alice = makeAddr("alice");
-
-
     }
 
     function testMintDebtToken() public {
@@ -107,4 +91,3 @@ contract DebTokenTest is Test {
         assertEq(debtoken.totalSupply(), supply - 5 ether);
     }
 }
-    
