@@ -45,7 +45,7 @@ contract WethGateWay {
         lend.deposit(user, uint128(msg.value));
     }
 
-    function withdrawETH(uint128 amount) public payable {
+    function withdrawETH(uint128 amount) external payable {
         address user = msg.sender;
 
         lend.withdraw(user, amount);
@@ -55,14 +55,14 @@ contract WethGateWay {
         transferETH(msg.sender, amountToWithdraw);
     }
 
-    function borrowETH(uint128 amount) public payable {
+    function borrowETH(uint128 amount) external payable {
         address user = msg.sender;
         lend.borrow(user, amount);
         iweth.withdraw(amount);
         transferETH(msg.sender, amount);
     }
 
-    function repayETH(uint128 amount) public payable {
+    function repayETH(uint128 amount) external payable {
         address user = msg.sender;
 
         uint256 interest = lend.calculateInterest(amount, user);

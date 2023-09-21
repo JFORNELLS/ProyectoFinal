@@ -45,8 +45,8 @@ contract ATokenTest is Test {
 
     function testMintAtoken() public {
         // If the caller is not LendingPool the function will revert.
-        //vm.expectRevert();
-        //atoken.mintAToken(alice, 10 ether);
+        vm.expectRevert();
+        atoken.mintAToken(alice, 10 ether);
 
         // If the caller is LendingPool the function works.
         vm.startPrank(address(lend));
