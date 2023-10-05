@@ -64,6 +64,14 @@ contract DebTokenTest is Test {
 
         // Check that total supply has increased 10 DebTokens.
         assertEq(debtoken.totalSupply(), supply + 10 ether);
+        
+        // If the user wants to tranfer debtokens, the function will revert.
+        vm.expectRevert();
+        IERC20(address(debtoken)).transfer(address(alice), 1 ether);
+
+        // If the user wants to tranfer debtokens, the function will revert.
+        vm.expectRevert();
+        IERC20(address(debtoken)).transferFrom(address(alice), address(alice), 1 ether);
     }
 
     function testBurndDebtToken() public {

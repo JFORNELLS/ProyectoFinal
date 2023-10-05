@@ -8,7 +8,7 @@ contract DebToken is ERC20 {
 
     event BurnDebToken(address indexed account, uint256 amount);
 
-    LendingPool public lend;
+    LendingPool public immutable lend;
 
     constructor(address payable _lend) ERC20("DebtToken", "DTN", 18) {
         lend = LendingPool(_lend);
@@ -32,5 +32,13 @@ contract DebToken is ERC20 {
         _burn(account, amount);
 
         emit BurnDebToken(account, amount);
+    }
+
+    function transfer(address /*recipient*/, uint256 /*amount*/) public override returns (bool) {
+        revert("Transfers of DebToken are not allowed");
+    }
+
+    function transferFrom(address /*sender*/, address /*recipient*/, uint256 /*amount*/) public override returns (bool) {
+        revert("Transfers of DebToken are not allowed");
     }
 }

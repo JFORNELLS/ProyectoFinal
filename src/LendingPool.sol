@@ -100,7 +100,7 @@ contract LendingPool {
             totalSupplies++;
         }
 
-        transferFrom(ERC20(tokenWeth), msg.sender, address(this), amount);
+        _transferFrom(ERC20(tokenWeth), msg.sender, address(this), amount);
 
         IAToken(address(atoken)).mintAToken(user, amount);
 
@@ -128,7 +128,7 @@ contract LendingPool {
             totalSupplies--;
         }
 
-        transfer(ERC20(tokenWeth), msg.sender, amountToWithdraw);
+        _transfer(ERC20(tokenWeth), msg.sender, amountToWithdraw);
         IAToken(address(atoken)).burnAToken(user, amount);
 
         emit Withdrawn(user, amount, rewards);
@@ -154,7 +154,7 @@ contract LendingPool {
             totalBorrows++;
         }
 
-        transfer(ERC20(tokenWeth), msg.sender, amount);
+        _transfer(ERC20(tokenWeth), msg.sender, amount);
         IDebToken(address(debtoken)).mintDebToken(user, amount);
 
         emit Borrowed(user, amount);
@@ -183,7 +183,7 @@ contract LendingPool {
             totalBorrows--;
         }
 
-        transferFrom(
+        _transferFrom(
             ERC20(tokenWeth),
             msg.sender,
             address(this),
@@ -221,23 +221,21 @@ contract LendingPool {
         return (amount * 40) / 100;
     }
 
-    function transfer(
+    function _transfer(
         ERC20 asset,
         address to,
         uint256 amount
-    ) public returns (bool) {
+    ) internal {
         SafeTransferLib.safeTransfer(ERC20(asset), to, amount);
-        return true;
     }
 
-    function transferFrom(
+    function _transferFrom(
         ERC20 asset,
         address from,
         address to,
         uint256 amount
-    ) public returns (bool) {
+    ) internal {
         SafeTransferLib.safeTransferFrom(ERC20(asset), from, to, amount);
-        return true;
     }
 
     

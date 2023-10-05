@@ -41,7 +41,7 @@ contract WethGateWay {
         address user = msg.sender;
 
         iweth.deposit{value: msg.value}();
-        approve(weth, address(lend), msg.value);
+        _approve(weth, address(lend), msg.value);
         lend.deposit(user, uint128(msg.value));
     }
 
@@ -52,14 +52,14 @@ contract WethGateWay {
         uint256 amountToWithdraw = amount + lend.calculateRewards(amount, user);
 
         iweth.withdraw(amountToWithdraw);
-        transferETH(msg.sender, amountToWithdraw);
+        _transferETH(msg.sender, amountToWithdraw);
     }
 
     function borrowETH(uint128 amount) external payable {
         address user = msg.sender;
         lend.borrow(user, amount);
         iweth.withdraw(amount);
-        transferETH(msg.sender, amount);
+        _transferETH(msg.sender, amount);
     }
 
     function repayETH(uint128 amount) external payable {
@@ -69,16 +69,15 @@ contract WethGateWay {
         uint256 amountToRepay = amount + interest;
 
         iweth.deposit{value: msg.value}();
-        approve(weth, address(lend), amountToRepay);
+        _approve(weth, address(lend), amountToRepay);
         lend.repay(user, amount);
     }
 
-    function transferETH(address to, uint256 amount) public returns (bool) {
+    function _transferETH(address to, uint256 amount) public {
         SafeTransferLib.safeTransferETH(to, amount);
-        return true;
     }
 
-    function approve(
+    function _approve(
         ERC20 token,
         address to,
         uint256 amount

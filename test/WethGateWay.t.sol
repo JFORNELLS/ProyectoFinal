@@ -303,16 +303,6 @@ contract WethGateWayTest is Test {
         assertEq(lend.totalBorrows(), borrows - 1);
     }
 
-    function testTransferETH() public {
-        vm.prank(alice);
-        assertTrue(gateway.transferETH(address(gateway), 2 ether));
-    }
-
-    function testApprove() public {
-        vm.prank(alice);
-        assertTrue(gateway.approve(ERC20(weth), address(gateway), 2 ether));
-    }
-
     // This function calculates 40% of the amount to borrow to check the functions.
     function _calculate40Percent(uint128 amount) public pure returns (uint128) {
         uint128 t20Percent = amount / 5;

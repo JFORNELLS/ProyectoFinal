@@ -8,7 +8,7 @@ contract AToken is ERC20 {
 
     event BurnAToken(address indexed account, uint256 amount);
 
-    LendingPool public lend;
+    LendingPool public immutable lend;
 
     constructor(address payable _lend) ERC20("AToken", "ATN", 18) {
         lend = LendingPool(_lend);

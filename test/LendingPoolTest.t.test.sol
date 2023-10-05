@@ -335,18 +335,6 @@ contract LendingPoolTest is Test {
         assertEq(iercDebToken.balanceOf(address(bob)), 0 ether);
     }
 
-    function testTransfer() public {
-        assertTrue(lend.transfer(weth, address(bob), 2 ether));
-    }
-
-    function testTransferFrom() public {
-        vm.startPrank(bob);
-        iercWeth.approve(address(lend), 2 ether);
-        assertTrue(
-            lend.transferFrom(weth, address(bob), address(lend), 2 ether)
-        );
-    }
-
     // This function calculates 40% of the amount to borrow to check the functions
     function _calculate40Percent(uint128 amount) public pure returns (uint128) {
         uint128 t20Percent = amount / 5;
