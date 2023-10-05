@@ -81,9 +81,8 @@ contract WethGateWay {
         ERC20 token,
         address to,
         uint256 amount
-    ) public returns (bool) {
+    ) internal {
         SafeTransferLib.safeApprove(ERC20(token), to, amount);
-        return true;
     }
 
     receive() external payable {}
