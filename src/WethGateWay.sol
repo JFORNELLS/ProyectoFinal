@@ -8,6 +8,9 @@ import "../lib/solmate/src/tokens/WETH.sol";
 import {SafeTransferLib} from "../lib/solmate/src/utils/SafeTransferLib.sol";
 
 interface IWETH {
+
+    //////////////////////////// INTERFACES \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
     function deposit() external payable;
 
     function withdraw(uint256 amount) external;
@@ -15,6 +18,8 @@ interface IWETH {
 
 contract WethGateWay {
     using SafeTransferLib for ERC20;
+
+    //////////////////////////// STORAGE \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
     IWETH public immutable iweth;
     WETH public immutable weth;
@@ -36,6 +41,8 @@ contract WethGateWay {
         iercWeth = IERC20(_iweth);
         debtoken = DebToken(_debtoken);
     }
+
+    ///////////////////// USER-FACING FUNCTIONS \\\\\\\\\\\\\\\\\\\\\\\\
 
     function depositETH() public payable {
         address user = msg.sender;
@@ -72,6 +79,8 @@ contract WethGateWay {
         _approve(weth, address(lend), amountToRepay);
         lend.repay(user, amount);
     }
+
+    //////////////////////////// INTERNAL FUNCTIONS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
     function _transferETH(address to, uint256 amount) public {
         SafeTransferLib.safeTransferETH(to, amount);

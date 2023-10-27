@@ -7,6 +7,8 @@ import "../src/DebToken.sol";
 import "../lib/solmate/src/tokens/WETH.sol";
 import "../lib/solmate/src/utils/SafeTransferLib.sol";
 
+
+    //////////////////////////// INTERFACES \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 interface IAToken {
     function mintAToken(address to, uint256 amount) external;
 
@@ -20,6 +22,9 @@ interface IDebToken {
 }
 
 contract LendingPool {
+
+    //////////////////////////// EVENTS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
     event Deposited(address indexed user, uint256 amount);
 
     event Withdrawn(address indexed user, uint256 amount, uint256 rewards);
@@ -27,6 +32,8 @@ contract LendingPool {
     event Borrowed(address indexed user, uint256 amount);
 
     event Repaied(address indexed user, uint256 amount, uint256 interest);
+
+    //////////////////////////// ERRORS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
     error AmountCannotBe0();
     error AlreadyHaveADeposit();
@@ -42,6 +49,8 @@ contract LendingPool {
     error InsuficientAmountDeposit();
     error AmountExceedsDebt();
     error OverFlow();
+
+    //////////////////////////// STORAGE \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
     enum State {
         INITIAL,
@@ -70,6 +79,8 @@ contract LendingPool {
     WethGateWay public immutable gateway;
     IERC20 public immutable iercWeth;
 
+    ////////////////////////// CONSTRUCTOR \\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
     constructor(
         address _atoken,
         address _debtoken,
@@ -83,6 +94,13 @@ contract LendingPool {
         gateway = WethGateWay(_gateway);
     }
 
+    ///////////////////// USER-FACING FUNCTIONS \\\\\\\\\\\\\\\\\\\\\\\\
+
+    /*
+     * @notice The user deposits an amount of wETH and receives the same amount of ATokens
+     * @param address The user's address.,
+     * @param amount The amount to be deposited.
+    */
     function deposit(address user, uint128 amount) external {
         Data storage data = supplies[user];
 
@@ -92,7 +110,7 @@ contract LendingPool {
 
         data.supplier = user;
         data.amountDeposit = amount;
-        data.timeSupply = 182.5 days; //cantitat per fer proves
+        data.timeSupply;
         data.state = State.SUPPLIER;
 
         unchecked {
@@ -107,6 +125,12 @@ contract LendingPool {
         emit Deposited(user, amount);
     }
 
+    /*
+     * @notice Withdraws all or part of the deposited weth tokens, 
+     * burn the same amount from the user.
+     * @param address The user's address.,
+     * @param amount The amount to be withdrwed.
+    */
     function withdraw(address user, uint128 amount) external {
         Data storage data = supplies[user];
 
@@ -134,6 +158,12 @@ contract LendingPool {
         emit Withdrawn(user, amount, rewards);
     }
 
+    /*
+     * @notice Borrows a maximum of 40% of the deposited amount,
+     * the users recieves the same amount of DebTokens.
+     * @param address The user's address.,
+     * @param amount The amount to be borrowed.
+    */
     function borrow(address user, uint128 amount) external {
         Data storage data = supplies[user];
 
@@ -146,7 +176,7 @@ contract LendingPool {
         if (amount > maxAmountToBorrow) revert AmountExceeded();
 
         data.amountBorrowed = amount;
-        data.timeBorrow = 365 days; //cantitat per fer proves
+        data.timeBorrow;
         data.state = State.BORROWER;
 
         unchecked {
@@ -160,6 +190,11 @@ contract LendingPool {
         emit Borrowed(user, amount);
     }
 
+    /*
+     * @notice Pays all or part of the loan, and burn Dbebtoken's amount from user.
+     * @param address The user's address.,
+     * @param amount The amount to be repaied.
+    */
     function repay(address user, uint128 amount) external {
         Data storage data = supplies[user];
 
@@ -194,6 +229,11 @@ contract LendingPool {
         emit Repaied(user, amount, interest);
     }
 
+    //////////////////////////// CALCULTATION FUNCTIONS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+    /*
+     * @notice Calculate profits with a fixed annual percentage.
+    */
     function calculateRewards(
         uint256 amount,
         address user
@@ -204,7 +244,10 @@ contract LendingPool {
         uint256 percent = (((timeSupply * 10) * 1e18) / 365 days) / 100;
         return (amount * percent) / 1e18;
     }
-
+    
+    /*
+     * @notice Calculates interest with a fixed annual percentage.
+    */
     function calculateInterest(
         uint256 amount,
         address user
@@ -216,11 +259,19 @@ contract LendingPool {
         return (amount * percent) / 1e18;
     }
 
+    //////////////////////////// INTERNAL FUNCTIONS \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+    /*
+     * @dev Calculate 40% of the amount deposited to be able to borrow..
+    */
     function _maxAmountLoan(address user) internal view returns (uint256) {
         uint256 amount = supplies[user].amountDeposit;
         return (amount * 40) / 100;
     }
 
+    /*
+     * @dev Transfer the tokens with the SafeTransferLib librasry.
+    */
     function _transfer(
         ERC20 asset,
         address to,
@@ -228,7 +279,10 @@ contract LendingPool {
     ) internal {
         SafeTransferLib.safeTransfer(ERC20(asset), to, amount);
     }
-
+    
+    /*
+     * @dev Transfer the tokens with the SafeTransferLib librasry.
+    */
     function _transferFrom(
         ERC20 asset,
         address from,
